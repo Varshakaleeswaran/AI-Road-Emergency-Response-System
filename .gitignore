@@ -1,0 +1,45 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Secrets
+.env
+
+# YOLO / ML model weights
+*.pt
+*.pth
+*.onnx
+
+# Videos / large media
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+
+# Generated YOLO outputs
+runs/
+
+# Accident dataset videos
+data/ACCIDENT/real_videos/
+
+# Generated tracking outputs
+data/ACCIDENT/tracking/
+
+# Generated normal-traffic outputs
+vehicle_movement*.csv
+vehicle_tracking_boxes.csv
+vehicle_trajectory.csv
+vehicle_proximity.csv
+suspicious_movement.csv
+close_vehicle_pairs.csv
+
+# OS files
+.DS_Store
+Thumbs.db
