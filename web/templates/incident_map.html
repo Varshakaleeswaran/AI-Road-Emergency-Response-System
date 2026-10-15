@@ -1,0 +1,538 @@
+{% extends "base.html" %}
+{% block title %}Ambulance Location — Incident #{{ incident.id }}{% endblock %}
+{% block page_title %}
+  <i class="bi bi-map me-2" style="color:var(--rql-green);"></i>
+  Ambulance Location — Incident #{{ incident.id }}
+{% endblock %}
+
+{% block extra_css %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+<style>
+:root { --panel-w: 340px; }
+.map-layout { display: flex; gap: 14px; height: calc(100vh - var(--topbar-h) - 90px); }
+.map-panel { width: var(--panel-w); flex-shrink: 0; display: flex; flex-direction: column; gap: 10px; overflow-y: auto; }
+.map-view { flex: 1; border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--rql-border); position: relative; }
+#incidentMap { height: 100%; width: 100%; }
+
+/* Info panel cards */
+.info-card { background: var(--rql-surface); border: 1px solid var(--rql-border); border-radius: var(--radius); overflow: hidden; }
+.info-card-head { background: var(--rql-surface2); border-bottom: 1px solid var(--rql-border); padding: 9px 14px; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; display: flex; align-items: center; gap: 6px; }
+.info-card-body { padding: 12px; }
+.amb-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--rql-border); font-size: 12px; }
+.amb-row:last-child { border-bottom: none; }
+.amb-name { font-weight: 600; color: var(--rql-text); }
+.amb-meta { font-size: 10px; color: var(--rql-text-muted); }
+.amb-status { font-size: 10px; font-weight: 600; }
+.hosp-row { display: flex; align-items: flex-start; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--rql-border); font-size: 12px; }
+.hosp-row:last-child { border-bottom: none; }
+.hosp-rank { width: 20px; height: 20px; border-radius: 50%; background: var(--rql-accent); color: #fff; font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+.hosp-name { font-weight: 600; }
+.hosp-dist { font-size: 10px; color: var(--rql-text-muted); }
+
+/* Map overlays */
+.map-overlay-btn { position: absolute; z-index: 1000; background: var(--rql-surface); border: 1px solid var(--rql-border); border-radius: var(--radius-sm); padding: 6px 12px; font-size: 11px; font-weight: 600; color: var(--rql-text); cursor: pointer; display: flex; align-items: center; gap: 6px; transition: all .15s; }
+.map-overlay-btn:hover { background: var(--rql-surface2); border-color: var(--rql-accent); color: var(--rql-accent); }
+.map-controls { top: 12px; left: 12px; display: flex; flex-direction: column; gap: 6px; }
+.refresh-btn { top: 12px; right: 12px; }
+.pin-btn { bottom: 60px; left: 12px; }
+
+/* Leaflet popup dark */
+.leaflet-popup-content-wrapper { background: var(--rql-surface2); border: 1px solid var(--rql-border2); color: var(--rql-text); border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,.6); }
+.leaflet-popup-tip { background: var(--rql-surface2); }
+.leaflet-bar a { background: var(--rql-surface); color: var(--rql-text); border-color: var(--rql-border2); }
+.leaflet-bar a:hover { background: var(--rql-surface2); }
+
+/* ETA badge */
+.eta-badge { display: inline-flex; align-items: center; gap: 4px; background: rgba(34,197,94,.1); border: 1px solid rgba(34,197,94,.2); color: var(--rql-green); font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 99px; }
+.eta-badge.on-scene { background: rgba(249,115,22,.1); border-color: rgba(249,115,22,.2); color: var(--rql-accent); }
+
+/* Routing line */
+.leaflet-routing-container { display: none; }
+
+@keyframes pulse-icon { 0%,100% { opacity:1; } 50% { opacity:.5; } }
+.moving { animation: pulse-icon 1.2s ease-in-out infinite; }
+
+/* Pin mode overlay */
+.pin-instructions { position: absolute; bottom: 12px; left: 50%; transform: translateX(-50%); z-index: 1000; background: rgba(249,115,22,.9); color: #fff; padding: 8px 16px; border-radius: var(--radius); font-size: 12px; font-weight: 600; display: none; }
+</style>
+{% endblock %}
+
+{% block content %}
+<!-- Top info bar -->
+<div class="page-header mb-2">
+  <div class="page-header-left">
+    <h2 class="page-title">
+      Incident #{{ incident.id }} — Ambulance Location & Status
+    </h2>
+    <span class="page-subtitle">
+      Vehicle {{ incident.vehicle_id }} · {{ incident.vehicle_type or 'Unknown' }}
+      &nbsp;·&nbsp;
+      <span class="badge-status badge-{{ incident.severity|lower }}">{{ incident.severity }}</span>
+      <span class="badge-status badge-{{ incident.status|replace(' ','-')|lower }}">{{ incident.status }}</span>
+    </span>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <span id="last-update" style="font-size:11px;color:var(--rql-text-muted);"></span>
+    <span class="topbar-badge">Map refreshes every 5 seconds</span>
+    <span id="tracking-source" class="topbar-badge">Checking location sources…</span>
+    <a href="{{ url_for('incident_detail', iid=incident.id) }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i> Detail
+    </a>
+    <a href="{{ url_for('live_map') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-grid"></i> All
+    </a>
+  </div>
+</div>
+<div class="alert alert-info py-2 mb-2" role="note" style="font-size:12px;">
+  <strong>Location meaning:</strong> Driver-device GPS is real only after the assigned responder grants browser location permission.
+  Simulated demo movement, stale GPS, and registered base locations are labeled separately. ETA is a straight-line estimate
+  assuming 60 km/h, not a traffic-aware arrival prediction. Map tiles, route geometry, and address lookup use public OpenStreetMap/CARTO/OSRM services.
+</div>
+
+<!-- Map layout -->
+<div class="map-layout">
+
+  <!-- ── Left info panel ──────────────────────────────────────── -->
+  <div class="map-panel">
+
+    <!-- Incident pin info -->
+    <div class="info-card">
+      <div class="info-card-head" style="color:var(--rql-accent);">
+        <i class="bi bi-geo-alt-fill"></i> Incident Location
+      </div>
+      <div class="info-card-body">
+        <div id="inc-address" style="font-size:13px;font-weight:600;margin-bottom:6px;">
+          {{ (incident_loc.address if incident_loc else incident.location_text) or 'Location not set' }}
+        </div>
+        <div id="inc-coords" style="font-size:11px;color:var(--rql-text-muted);font-family:'JetBrains Mono',monospace;">
+          {% if incident_loc %}
+            {{ '%.5f'|format(incident_loc.latitude) }}, {{ '%.5f'|format(incident_loc.longitude) }}
+          {% else %}
+            No GPS fix yet
+          {% endif %}
+        </div>
+        {% if user.role in ('admin','operator') %}
+        <button class="btn btn-outline-secondary btn-sm mt-2 w-100" onclick="startPinMode()">
+          <i class="bi bi-pin-map"></i> Set/Update Location
+        </button>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Ambulances -->
+    <div class="info-card">
+      <div class="info-card-head" style="color:var(--rql-red);">
+        <i class="bi bi-truck"></i> Ambulances
+        <span id="amb-count" class="ms-auto" style="font-size:10px;color:var(--rql-text-muted);"></span>
+      </div>
+      <div class="info-card-body" id="amb-panel">
+        <div style="color:var(--rql-text-muted);font-size:12px;text-align:center;padding:12px;">
+          Loading…
+        </div>
+      </div>
+    </div>
+
+    <!-- Hospitals ranked -->
+    <div class="info-card">
+      <div class="info-card-head" style="color:var(--rql-blue);">
+        <i class="bi bi-hospital"></i> Nearest Hospitals
+      </div>
+      <div class="info-card-body" id="hosp-panel">
+        <div style="color:var(--rql-text-muted);font-size:12px;text-align:center;padding:12px;">
+          Loading…
+        </div>
+      </div>
+    </div>
+
+    <!-- Others -->
+    <div class="info-card">
+      <div class="info-card-head" style="color:var(--rql-text-muted);">
+        <i class="bi bi-shield-check"></i> Police / Fire
+      </div>
+      <div class="info-card-body" id="others-panel">
+        <div style="color:var(--rql-text-muted);font-size:12px;text-align:center;padding:12px;">
+          Loading…
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Map view ─────────────────────────────────────────────── -->
+  <div class="map-view">
+    <div id="incidentMap"></div>
+
+    <!-- Map control overlays -->
+    <div class="map-overlay-btn map-controls">
+      <button class="map-overlay-btn" style="position:relative;" onclick="toggleAmbulances()" id="btn-amb">
+        <i class="bi bi-truck"></i> Ambulances
+      </button>
+      <button class="map-overlay-btn" style="position:relative;" onclick="toggleHospitals()" id="btn-hosp">
+        <i class="bi bi-hospital"></i> Hospitals
+      </button>
+      <button class="map-overlay-btn" style="position:relative;" onclick="toggleRoutes()" id="btn-routes">
+        <i class="bi bi-signpost-split"></i> Routes
+      </button>
+    </div>
+    <button class="map-overlay-btn refresh-btn" onclick="fetchAndRender()">
+      <i class="bi bi-arrow-clockwise"></i> Refresh
+    </button>
+
+    <div class="pin-instructions" id="pin-instructions">
+      📍 Click on the map to set the incident location
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const INCIDENT_ID = {{ incident.id }};
+const API_URL = `/api/map/live/${INCIDENT_ID}`;
+const SET_LOC_URL = `/incidents/${INCIDENT_ID}/set_location`;
+
+// ── Dark tile map ─────────────────────────────────────────────────────────────
+const map = L.map('incidentMap', {
+  center: [
+    {{ incident_loc.latitude if incident_loc else 13.0827 }},
+    {{ incident_loc.longitude if incident_loc else 80.2707 }}
+  ],
+  zoom: 14,
+  zoomControl: true,
+});
+
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> © <a href="https://carto.com/attributions">CARTO</a>',
+  maxZoom: 19,
+}).addTo(map);
+
+// ── Layers ────────────────────────────────────────────────────────────────────
+const incidentLayer  = L.layerGroup().addTo(map);
+const ambulanceLayer = L.layerGroup().addTo(map);
+const hospitalLayer  = L.layerGroup().addTo(map);
+const othersLayer    = L.layerGroup().addTo(map);
+const routeLayer     = L.layerGroup().addTo(map);
+let showRoutes = true;
+
+// ── Icons ─────────────────────────────────────────────────────────────────────
+function makeIncidentIcon(severity) {
+  const c = { Critical:'#ef4444', High:'#ef4444', Medium:'#eab308', Low:'#22c55e' }[severity] || '#f97316';
+  return L.divIcon({
+    html: `<div style="position:relative;width:42px;height:42px;display:flex;align-items:center;justify-content:center;">
+      <div style="position:absolute;width:42px;height:42px;border-radius:50%;border:2px solid ${c};opacity:.6;animation:ring-pulse 1.8s ease-out infinite;"></div>
+      <div style="position:absolute;width:28px;height:28px;border-radius:50%;background:${c};border:3px solid #fff;display:flex;align-items:center;justify-content:center;font-size:13px;box-shadow:0 2px 8px ${c}aa;">⚠</div>
+    </div>`,
+    iconSize: [42,42], iconAnchor: [21,21], popupAnchor: [0,-24], className:'',
+  });
+}
+
+function makeAmbIcon(status) {
+  const moving = status === 'EN_ROUTE' || status === 'SIM_EN_ROUTE';
+  return L.divIcon({
+    html: `<div style="font-size:26px;${moving ? 'animation:pulse-icon 1.2s ease-in-out infinite;' : ''}filter:drop-shadow(0 2px 6px rgba(0,0,0,.7));">🚑</div>`,
+    iconSize: [30,30], iconAnchor: [15,15], popupAnchor: [0,-18], className:'',
+  });
+}
+
+function makeHospIcon(rank) {
+  return L.divIcon({
+    html: `<div style="position:relative;display:inline-block;">
+      <div style="font-size:24px;filter:drop-shadow(0 2px 6px rgba(0,0,0,.7));">🏥</div>
+      <div style="position:absolute;top:-4px;right:-6px;width:14px;height:14px;border-radius:50%;background:#3b82f6;color:#fff;font-size:9px;font-weight:700;display:flex;align-items:center;justify-content:center;">${rank}</div>
+    </div>`,
+    iconSize: [30,30], iconAnchor: [15,15], popupAnchor: [0,-18], className:'',
+  });
+}
+
+function makeOtherIcon(type) {
+  return L.divIcon({
+    html: `<div style="font-size:22px;filter:drop-shadow(0 2px 5px rgba(0,0,0,.6));">${type==='police'?'🚔':'🚒'}</div>`,
+    iconSize: [26,26], iconAnchor: [13,13], popupAnchor: [0,-15], className:'',
+  });
+}
+
+// ── Draw route line between two points ────────────────────────────────────────
+function drawRoute(fromLat, fromLng, toLat, toLng, color) {
+  // Use OSRM public routing API (free, no key needed)
+  const url = `https://router.project-osrm.org/route/v1/driving/${fromLng},${fromLat};${toLng},${toLat}?overview=full&geometries=geojson`;
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      if (data.routes && data.routes[0]) {
+        const coords = data.routes[0].geometry.coordinates.map(c => [c[1], c[0]]);
+        L.polyline(coords, {
+          color: color || '#f97316',
+          weight: 3,
+          opacity: 0.7,
+          dashArray: '6 4',
+        }).addTo(routeLayer);
+      }
+    })
+    .catch(() => {
+      // Fallback: straight dashed line
+      L.polyline([[fromLat,fromLng],[toLat,toLng]], {
+        color: color || '#f97316', weight: 2, opacity: 0.5, dashArray: '6 4',
+      }).addTo(routeLayer);
+    });
+}
+
+// ── Main render ───────────────────────────────────────────────────────────────
+let incidentMarker = null;
+let lastData = null;
+
+function renderAll(data) {
+  lastData = data;
+
+  // ── Incident pin ─────────────────────────────────────────────
+  incidentLayer.clearLayers();
+  const inc = data.incident;
+  incidentMarker = null;
+  if (inc.location_available && inc.lat !== null && inc.lng !== null) {
+    incidentMarker = L.marker([inc.lat, inc.lng], { icon: makeIncidentIcon(inc.severity) })
+      .addTo(incidentLayer);
+    incidentMarker.bindPopup(`
+      <div style="min-width:200px;font-size:12px;">
+        <div style="font-weight:700;font-size:14px;margin-bottom:6px;">🔴 Incident #${inc.id}</div>
+        <div><b>Severity:</b> ${inc.severity}</div>
+        <div><b>Status:</b> ${inc.status}</div>
+        <div><b>Vehicle:</b> ${inc.vehicle_type} #${inc.vehicle_id}</div>
+        <div style="color:#8b949e;font-size:11px;margin-top:6px;"><i>📍 ${inc.address}</i></div>
+      </div>
+    `).openPopup();
+  }
+
+  // Update sidebar coords
+  document.getElementById('inc-address').textContent = inc.address || 'Unknown';
+  document.getElementById('inc-coords').textContent = inc.location_available
+    ? `${inc.lat.toFixed(5)}, ${inc.lng.toFixed(5)}`
+    : 'Incident coordinates not set';
+
+  // ── Ambulances ───────────────────────────────────────────────
+  ambulanceLayer.clearLayers();
+  routeLayer.clearLayers();
+
+  let ambHtml = '';
+  const sourceCounts = { device_gps: 0, simulated_demo: 0, stale_gps: 0, registry: 0 };
+  data.ambulances.forEach((amb, i) => {
+    sourceCounts[amb.location_source] = (sourceCounts[amb.location_source] || 0) + 1;
+    const isMoving = amb.status === 'EN_ROUTE';
+    const marker = L.marker([amb.sim_lat, amb.sim_lng], { icon: makeAmbIcon(amb.status) })
+      .addTo(ambulanceLayer);
+    const sourceLabels = {
+      device_gps: 'Assigned driver phone GPS',
+      simulated_demo: 'SIMULATED demo movement',
+      stale_gps: 'STALE driver-device GPS',
+      registry: 'Registered base location (static)',
+    };
+    const locationAge = Number.isFinite(amb.gps_age_seconds)
+      ? `${amb.gps_age_seconds}s old`
+      : 'timestamp unavailable';
+    const accuracyText = Number.isFinite(amb.accuracy_meters)
+      ? ` · ±${Math.round(amb.accuracy_meters)}m reported accuracy`
+      : '';
+    marker.bindPopup(`
+      <div style="font-size:12px;min-width:190px;">
+        <div style="font-weight:700;font-size:13px;margin-bottom:5px;">🚑 ${amb.name}</div>
+        <div><b>Status:</b> <span style="color:${isMoving?'#22c55e':'#f97316'};font-weight:600;">${amb.status}</span></div>
+        <div><b>Speed:</b> ${amb.speed_kmh} km/h</div>
+        <div><b>Distance:</b> ${amb.distance_km === null ? 'incident coordinates unavailable' : `${amb.distance_km} km from incident`}</div>
+        ${amb.eta_min !== null ? `<div><b>ETA:</b> ~${amb.eta_min} min (straight-line at 60 km/h; no traffic)</div>` : '<div><b>ETA:</b> unavailable</div>'}
+        <div><b>Location source:</b> ${sourceLabels[amb.location_source] || 'Unknown'}</div>
+        ${amb.location_source === 'device_gps' || amb.location_source === 'stale_gps'
+          ? `<div><b>Last device fix:</b> ${locationAge}${accuracyText}</div>`
+          : ''}
+        <div style="color:#8b949e;font-size:11px;margin-top:4px;">${amb.location_text}</div>
+      </div>
+    `);
+
+    if (showRoutes && inc.location_available && isMoving && ['device_gps', 'simulated_demo'].includes(amb.location_source)) {
+      drawRoute(amb.sim_lat, amb.sim_lng, inc.lat, inc.lng, '#ef4444');
+    }
+
+    // Draw route from incident to nearest hospital
+    if (showRoutes && inc.location_available && data.hospitals.length && i === 0) {
+      const h = data.hospitals[0];
+      drawRoute(inc.lat, inc.lng, h.lat, h.lng, '#3b82f6');
+    }
+
+    const statusColor = isMoving ? 'var(--rql-green)' : 'var(--rql-accent)';
+    const etaBadge = amb.eta_min !== null
+      ? `<span class="eta-badge">~${amb.eta_min}m straight-line</span>`
+      : '<span class="eta-badge">ETA unavailable</span>';
+    ambHtml += `
+      <div class="amb-row">
+        <div>
+          <div class="amb-name">🚑 ${amb.name}</div>
+          <div class="amb-meta">${amb.distance_km === null ? 'Incident distance unavailable' : `${amb.distance_km} km`} · ${amb.speed_kmh} km/h · ${sourceLabels[amb.location_source] || 'Unknown source'}</div>
+          ${amb.location_source === 'device_gps' || amb.location_source === 'stale_gps'
+            ? `<div class="amb-meta">${locationAge}${accuracyText}</div>`
+            : ''}
+        </div>
+        <div style="text-align:right;">
+          <div class="amb-status" style="color:${statusColor};">${amb.status}</div>
+          ${etaBadge}
+        </div>
+      </div>`;
+  });
+  document.getElementById('amb-panel').innerHTML = ambHtml || '<div style="font-size:12px;color:var(--rql-text-muted);text-align:center;padding:8px;">No ambulances with GPS</div>';
+  document.getElementById('amb-count').textContent = `${data.ambulances.length} units`;
+  const sourceSummary = [
+    sourceCounts.device_gps ? `Device GPS ${sourceCounts.device_gps}` : '',
+    sourceCounts.simulated_demo ? `SIMULATED ${sourceCounts.simulated_demo}` : '',
+    sourceCounts.stale_gps ? `Stale ${sourceCounts.stale_gps}` : '',
+    sourceCounts.registry ? `Static ${sourceCounts.registry}` : '',
+  ].filter(Boolean).join(' · ');
+  document.getElementById('tracking-source').textContent = sourceSummary || 'No ambulance locations';
+
+  // ── Hospitals ────────────────────────────────────────────────
+  hospitalLayer.clearLayers();
+  let hospHtml = '';
+  data.hospitals.forEach((h, i) => {
+    const marker = L.marker([h.lat, h.lng], { icon: makeHospIcon(i+1) })
+      .addTo(hospitalLayer);
+    marker.bindPopup(`
+      <div style="font-size:12px;min-width:190px;">
+        <div style="font-weight:700;font-size:13px;margin-bottom:5px;">🏥 ${h.name}</div>
+        <div><b>Status:</b> ${h.status}</div>
+        <div><b>Distance:</b> ${h.distance_km === null ? 'incident coordinates unavailable' : `${h.distance_km} km`}</div>
+        ${h.capacity_note ? `<div><b>Capacity:</b> ${h.capacity_note}</div>` : ''}
+        <div style="color:#8b949e;font-size:11px;margin-top:4px;">${h.location_text}</div>
+      </div>
+    `);
+    const rankColor = i === 0 ? '#22c55e' : i === 1 ? '#eab308' : '#8b949e';
+    hospHtml += `
+      <div class="hosp-row">
+        <div class="hosp-rank" style="background:${rankColor};">${i+1}</div>
+        <div>
+          <div class="hosp-name">🏥 ${h.name}</div>
+          <div class="hosp-dist">${h.distance_km === null ? 'Distance unavailable' : `${h.distance_km} km`} · ${h.status}</div>
+          ${h.capacity_note ? `<div class="hosp-dist">${h.capacity_note}</div>` : ''}
+        </div>
+      </div>`;
+  });
+  document.getElementById('hosp-panel').innerHTML = hospHtml || '<div style="font-size:12px;color:var(--rql-text-muted);text-align:center;padding:8px;">No hospitals with GPS</div>';
+
+  // ── Police / Fire ─────────────────────────────────────────────
+  othersLayer.clearLayers();
+  let othersHtml = '';
+  data.others.forEach(o => {
+    const marker = L.marker([o.lat, o.lng], { icon: makeOtherIcon(o.type) })
+      .addTo(othersLayer);
+    marker.bindPopup(`
+      <div style="font-size:12px;">
+        <div style="font-weight:700;">${o.type==='police'?'🚔':'🚒'} ${o.name}</div>
+        <div><b>Status:</b> ${o.status}</div>
+        <div><b>Distance:</b> ${o.distance_km === null ? 'incident coordinates unavailable' : `${o.distance_km} km`}</div>
+      </div>
+    `);
+    othersHtml += `
+      <div class="amb-row">
+        <div>
+          <div class="amb-name">${o.type==='police'?'🚔':'🚒'} ${o.name}</div>
+          <div class="amb-meta">${o.distance_km === null ? 'Incident distance unavailable' : `${o.distance_km} km`}</div>
+        </div>
+        <div class="amb-status" style="color:${o.status==='Available'?'var(--rql-green)':'var(--rql-yellow)'};">${o.status}</div>
+      </div>`;
+  });
+  document.getElementById('others-panel').innerHTML = othersHtml ||
+    '<div style="font-size:12px;color:var(--rql-text-muted);text-align:center;padding:8px;">None nearby</div>';
+
+  // Timestamp
+  document.getElementById('last-update').textContent = 'Updated ' + new Date(data.timestamp).toLocaleTimeString();
+}
+
+// ── Fetch from API ────────────────────────────────────────────────────────────
+async function fetchAndRender() {
+  try {
+    const resp = await fetch(API_URL);
+    const data = await resp.json();
+    if (data.error) return;
+    renderAll(data);
+  } catch(e) {
+    console.warn('Map refresh failed', e);
+  }
+}
+
+// Initial load
+fetchAndRender();
+
+// Auto-refresh every 5 seconds for live GPS movement
+setInterval(fetchAndRender, 5000);
+
+// ── Layer toggles ─────────────────────────────────────────────────────────────
+let showAmb = true, showHosp = true;
+
+function toggleAmbulances() {
+  showAmb = !showAmb;
+  showAmb ? map.addLayer(ambulanceLayer) : map.removeLayer(ambulanceLayer);
+  document.getElementById('btn-amb').style.color = showAmb ? '' : 'var(--rql-text-dim)';
+}
+function toggleHospitals() {
+  showHosp = !showHosp;
+  showHosp ? map.addLayer(hospitalLayer) : map.removeLayer(hospitalLayer);
+  document.getElementById('btn-hosp').style.color = showHosp ? '' : 'var(--rql-text-dim)';
+}
+function toggleRoutes() {
+  showRoutes = !showRoutes;
+  if (!showRoutes) { routeLayer.clearLayers(); }
+  else { fetchAndRender(); }
+  document.getElementById('btn-routes').style.color = showRoutes ? '' : 'var(--rql-text-dim)';
+}
+
+// ── Pin mode — click to set incident location ─────────────────────────────────
+let pinMode = false;
+
+function startPinMode() {
+  pinMode = true;
+  document.getElementById('pin-instructions').style.display = 'block';
+  map.getContainer().style.cursor = 'crosshair';
+}
+
+map.on('click', function(e) {
+  if (!pinMode) return;
+  pinMode = false;
+  document.getElementById('pin-instructions').style.display = 'none';
+  map.getContainer().style.cursor = '';
+  const { lat, lng } = e.latlng;
+
+  // Reverse geocode via Nominatim (free OSM service)
+  fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`)
+    .then(r => r.json())
+    .then(geo => {
+      const address = geo.display_name
+        ? geo.display_name.split(',').slice(0,3).join(', ')
+        : `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+      return fetch(SET_LOC_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content },
+        body: JSON.stringify({ lat, lng: lng, address }),
+      });
+    })
+    .then(r => r.json())
+    .then(() => fetchAndRender())
+    .catch(() => {
+      fetch(SET_LOC_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': document.querySelector('meta[name="csrf-token"]').content },
+        body: JSON.stringify({ lat, lng: lng, address: `${lat.toFixed(5)}, ${lng.toFixed(5)}` }),
+      }).then(() => fetchAndRender());
+    });
+});
+
+// ── Keyboard shortcuts ────────────────────────────────────────────────────────
+document.addEventListener('keydown', e => {
+  if (e.key === 'r' || e.key === 'R') fetchAndRender();
+  if (e.key === 'Escape') {
+    pinMode = false;
+    document.getElementById('pin-instructions').style.display = 'none';
+    map.getContainer().style.cursor = '';
+  }
+});
+</script>
+
+<style>
+@keyframes ring-pulse { 0% { transform:scale(0.8);opacity:1; } 100% { transform:scale(2.4);opacity:0; } }
+@keyframes pulse-icon { 0%,100% { opacity:1; } 50% { opacity:.4; } }
+</style>
+{% endblock %}

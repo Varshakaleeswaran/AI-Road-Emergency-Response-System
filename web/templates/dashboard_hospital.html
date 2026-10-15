@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+{% block title %}Hospital Dashboard{% endblock %}
+{% block page_title %}<i class="bi bi-hospital me-2" style="color:var(--rql-blue);"></i>Hospital Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2 class="page-title">Hospital Staff Console</h2>
+    <span class="page-subtitle">Incoming pre-alerts · Capacity management</span>
+  </div>
+</div>
+
+{% if my_hospital %}
+<div class="card mb-4" style="border-color:var(--rql-blue);">
+  <div class="card-header" style="background:rgba(59,130,246,.08);">
+    <i class="bi bi-hospital" style="color:var(--rql-blue);"></i>
+    <span class="card-title" style="color:var(--rql-blue);">{{ my_hospital.name }}</span>
+    <span class="ms-auto badge-status {% if my_hospital.operating_status=='Open' %}badge-verified{% else %}badge-high{% endif %}">{{ my_hospital.operating_status }}</span>
+  </div>
+  <div class="card-body">
+    <div class="meta-grid mb-3">
+      <div class="meta-item"><span class="meta-key">Total Beds</span><span class="meta-val">{{ my_hospital.total_beds }}</span></div>
+      <div class="meta-item"><span class="meta-key">Available Beds</span><span class="meta-val" style="color:var(--rql-green);">{{ my_hospital.available_beds }}</span></div>
+      <div class="meta-item"><span class="meta-key">ICU Beds</span><span class="meta-val">{{ my_hospital.icu_beds }}</span></div>
+      <div class="meta-item"><span class="meta-key">ICU Available</span><span class="meta-val" style="color:var(--rql-green);">{{ my_hospital.icu_available }}</span></div>
+      <div class="meta-item"><span class="meta-key">Trauma Centre</span><span class="meta-val">{{ '✅ Yes' if my_hospital.trauma_center else '❌ No' }}</span></div>
+      <div class="meta-item"><span class="meta-key">Capability</span><span class="meta-val">{{ my_hospital.capability_level }}</span></div>
+    </div>
+    <form method="post" action="{{ url_for('update_hospital_capacity', hid=my_hospital.id) }}" class="row g-2">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+      <div class="col-md-3"><label class="form-label">Available Beds</label><input type="number" class="form-control" name="available_beds" value="{{ my_hospital.available_beds }}" min="0"></div>
+      <div class="col-md-3"><label class="form-label">ICU Available</label><input type="number" class="form-control" name="icu_available" value="{{ my_hospital.icu_available }}" min="0"></div>
+      <div class="col-md-3"><label class="form-label">Status</label>
+        <select class="form-select" name="operating_status">
+          {% for s in ['Open','Divert','Limited','Closed'] %}
+          <option {% if s==my_hospital.operating_status %}selected{% endif %}>{{ s }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3 d-flex align-items-end"><button type="submit" class="btn btn-primary w-100"><i class="bi bi-save"></i> Update Capacity</button></div>
+    </form>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header"><i class="bi bi-bell" style="color:var(--rql-red);"></i><span class="card-title">Incoming Pre-Alerts</span></div>
+  <div class="rql-table-container">
+    {% if alerts %}
+    <table class="rql-table">
+      <thead><tr><th>Incident</th><th>Severity</th><th>ETA</th><th>Patients</th><th>Location</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody>
+      {% for a in alerts %}
+      <tr>
+        <td><a href="{{ url_for('incident_detail', iid=a.incident_id) }}" class="mono">#{{ a.incident_id }}</a></td>
+        <td><span class="badge-status badge-{{ a.severity|lower }}">{{ a.severity }}</span></td>
+        <td><span class="eta-badge">~{{ a.eta_minutes }} min</span></td>
+        <td>{{ a.patient_count }}</td>
+        <td style="font-size:11px;color:var(--rql-text-muted);">{{ (a.location_text or '—')[:30] }}</td>
+        <td><span class="badge-status {% if a.alert_status=='ACKNOWLEDGED' %}badge-verified{% else %}badge-under-review{% endif %}">{{ a.alert_status }}</span></td>
+        <td>
+          {% if a.alert_status == 'SENT' %}
+          <form method="post" action="{{ url_for('acknowledge_alert', aid=a.id) }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+            <button class="btn btn-success btn-sm"><i class="bi bi-check2"></i> Acknowledge</button>
+          </form>
+          {% else %}
+          <span style="color:var(--rql-text-muted);font-size:11px;">Acknowledged</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><i class="bi bi-bell"></i><p>No incoming pre-alerts.</p></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

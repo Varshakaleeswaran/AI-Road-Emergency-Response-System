@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% block title %}Incidents{% endblock %}
+{% block page_title %}<i class="bi bi-exclamation-triangle me-2" style="color:var(--rql-accent);"></i>Incidents{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2 class="page-title">Incident Records</h2>
+    <span class="page-subtitle">AI-detected anomalies and manually created incident reports</span>
+  </div>
+  {% if has_permission(user.role, 'review_incidents') %}
+  <a href="{{ url_for('new_incident') }}" class="btn btn-primary">
+    <i class="bi bi-plus-lg"></i> New Incident
+  </a>
+  {% endif %}
+</div>
+
+<!-- Filter bar -->
+<form method="get" class="filter-bar">
+  <i class="bi bi-funnel" style="color:var(--rql-text-muted);"></i>
+  <input type="text" class="form-control" name="q" value="{{ search }}" placeholder="Search vehicle, type, notes…" />
+  <select class="form-select" name="status">
+    <option value="">All statuses</option>
+    {% for s in statuses %}
+    <option value="{{ s }}" {% if s == status_filter %}selected{% endif %}>{{ s }}</option>
+    {% endfor %}
+  </select>
+  <select class="form-select" name="severity">
+    <option value="">All severities</option>
+    {% for sv in severities %}
+    <option value="{{ sv }}" {% if sv == severity_filter %}selected{% endif %}>{{ sv }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn btn-primary btn-sm">
+    <i class="bi bi-search"></i> Filter
+  </button>
+  {% if status_filter or severity_filter or search %}
+  <a href="{{ url_for('incidents') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-x"></i> Clear
+  </a>
+  {% endif %}
+</form>
+
+<div class="card">
+  <div class="rql-table-container">
+    {% if incidents %}
+    <table class="rql-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Vehicle</th>
+          <th>Type</th>
+          <th>Movement px/s</th>
+          <th>Dir. Change °</th>
+          <th>Decel.</th>
+          <th>Severity</th>
+          <th>Status</th>
+          <th>Assigned</th>
+          <th>Created</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for inc in incidents %}
+        <tr>
+          <td><span class="mono" style="color:var(--rql-text-muted);">#{{ inc.id }}</span></td>
+          <td>
+            <div style="font-weight:600;">ID {{ inc.vehicle_id }}</div>
+            <div style="font-size:11px;color:var(--rql-text-muted);">Frame {{ inc.frame }}</div>
+          </td>
+          <td>{{ inc.vehicle_type or '—' }}</td>
+          <td>
+            <span class="mono">{{ '%.1f'|format(inc.movement_per_sec or 0) }}</span>
+          </td>
+          <td>
+            <span class="mono">{{ '%.1f'|format(inc.direction_change_angle or 0) }}</span>
+          </td>
+          <td>
+            <span class="mono">{{ '%.2f'|format(inc.deceleration or 0) }}</span>
+          </td>
+          <td>
+            <span class="badge-status badge-{{ inc.severity|lower }}">{{ inc.severity }}</span>
+          </td>
+          <td>
+            {% set sc = inc.status|replace(' ','-')|lower %}
+            <span class="badge-status badge-{{ sc }}">{{ inc.status }}</span>
+          </td>
+          <td>
+            <div class="d-flex gap-1 flex-wrap">
+              {% if inc.ambulance_assigned %}
+              <span title="Ambulance" data-bs-toggle="tooltip">🚑</span>
+              {% endif %}
+              {% if inc.police_assigned %}
+              <span title="Police" data-bs-toggle="tooltip">🚔</span>
+              {% endif %}
+              {% if inc.fire_assigned %}
+              <span title="Fire" data-bs-toggle="tooltip">🚒</span>
+              {% endif %}
+              {% if not inc.ambulance_assigned and not inc.police_assigned and not inc.fire_assigned %}
+              <span style="color:var(--rql-text-dim);font-size:11px;">None</span>
+              {% endif %}
+            </div>
+          </td>
+          <td style="color:var(--rql-text-muted);font-size:11px;white-space:nowrap;">
+            {{ inc.created_at[:10] }}
+          </td>
+          <td>
+            <div class="d-flex gap-1">
+            <a href="{{ url_for('incident_detail', iid=inc.id) }}"
+               class="btn btn-outline-secondary btn-sm btn-icon"
+               data-bs-toggle="tooltip" title="View / Review">
+              <i class="bi bi-arrow-right"></i>
+            </a>
+            <a href="{{ url_for('incident_map', iid=inc.id) }}"
+               class="btn btn-outline-secondary btn-sm btn-icon"
+               data-bs-toggle="tooltip" title="Live Map">
+              <i class="bi bi-map"></i>
+            </a>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <i class="bi bi-inbox"></i>
+      <p>No incidents match your filter.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

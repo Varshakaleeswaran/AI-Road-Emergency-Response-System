@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% block title %}Resources{% endblock %}
+{% block page_title %}<i class="bi bi-truck me-2" style="color:var(--rql-blue);"></i>Resources{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2 class="page-title">Emergency Resources</h2>
+    <span class="page-subtitle">Ambulances, hospitals, police units, and fire stations</span>
+  </div>
+  {% if has_permission(user.role, 'manage_resources') %}
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addResourceModal">
+    <i class="bi bi-plus-lg"></i> Add Resource
+  </button>
+  {% endif %}
+</div>
+
+<!-- Summary row -->
+{% set amb_available = resources|selectattr('agency_type','eq','ambulance')|selectattr('status','eq','Available')|list|length %}
+{% set pol_available = resources|selectattr('agency_type','eq','police')|selectattr('status','eq','Available')|list|length %}
+{% set fire_available = resources|selectattr('agency_type','eq','fire')|selectattr('status','eq','Available')|list|length %}
+{% set hosp_available = resources|selectattr('agency_type','eq','hospital')|selectattr('status','eq','Available')|list|length %}
+
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card red">
+      <div class="stat-icon red"><i class="bi bi-truck"></i></div>
+      <div class="stat-value">{{ amb_available }}</div>
+      <div class="stat-label">🚑 Ambulances available</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card blue">
+      <div class="stat-icon blue"><i class="bi bi-shield-check"></i></div>
+      <div class="stat-value">{{ pol_available }}</div>
+      <div class="stat-label">🚔 Police units available</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card accent">
+      <div class="stat-icon accent"><i class="bi bi-fire"></i></div>
+      <div class="stat-value">{{ fire_available }}</div>
+      <div class="stat-label">🚒 Fire units available</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card green">
+      <div class="stat-icon green"><i class="bi bi-hospital"></i></div>
+      <div class="stat-value">{{ hosp_available }}</div>
+      <div class="stat-label">🏥 Hospitals available</div>
+    </div>
+  </div>
+</div>
+
+<!-- Resource cards -->
+{% if resources %}
+<div class="resource-grid">
+  {% for res in resources %}
+  <div class="resource-card">
+    <div class="resource-card-head">
+      <div class="resource-type-icon {{ res.agency_type }}">
+        {% if res.agency_type == 'ambulance' %}🚑
+        {% elif res.agency_type == 'hospital' %}🏥
+        {% elif res.agency_type == 'police' %}🚔
+        {% elif res.agency_type == 'fire' %}🚒
+        {% endif %}
+      </div>
+      <div>
+        <div class="resource-name">{{ res.resource_name }}</div>
+        <div class="resource-loc">{{ res.location_text or 'Location not set' }}</div>
+      </div>
+    </div>
+
+    <div class="d-flex align-items-center justify-content-between">
+      <span class="badge-status
+        {% if res.status == 'Available' %}badge-verified
+        {% elif res.status == 'Busy' %}badge-high
+        {% else %}badge-closed{% endif %}">
+        {{ res.status }}
+      </span>
+      {% if res.capacity_note %}
+      <span style="font-size:11px;color:var(--rql-text-muted);">{{ res.capacity_note }}</span>
+      {% endif %}
+    </div>
+
+    {% if has_permission(user.role, 'manage_resources') %}
+    <form method="post" action="{{ url_for('update_resource_status', rid=res.id) }}" class="d-flex gap-2 mt-2">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+      <select class="form-select form-select-sm" name="status">
+        {% for s in ['Available', 'Busy', 'Offline'] %}
+        <option {% if s == res.status %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-primary btn-sm">Save</button>
+    </form>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% else %}
+<div class="card">
+  <div class="empty-state">
+    <i class="bi bi-truck"></i>
+    <p>No resources added yet.</p>
+    {% if has_permission(user.role, 'manage_resources') %}
+    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#addResourceModal">
+      <i class="bi bi-plus-lg"></i> Add first resource
+    </button>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+
+<!-- ── Add resource modal ──────────────────────────────────────── -->
+{% if has_permission(user.role, 'manage_resources') %}
+<div class="modal fade" id="addResourceModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content" style="background:var(--rql-surface);border-color:var(--rql-border);">
+      <div class="modal-header" style="border-color:var(--rql-border);">
+        <h5 class="modal-title" style="font-size:15px;">
+          <i class="bi bi-plus-circle me-2" style="color:var(--rql-accent);"></i>
+          Add Emergency Resource
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('add_resource') }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Agency Type</label>
+              <select class="form-select" name="agency_type" required>
+                <option value="ambulance">🚑 Ambulance</option>
+                <option value="hospital">🏥 Hospital</option>
+                <option value="police">🚔 Police</option>
+                <option value="fire">🚒 Fire &amp; Rescue</option>
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Resource Name</label>
+              <input type="text" class="form-control" name="resource_name"
+                placeholder="e.g. Ambulance Unit 3 / Apollo Hospital" required />
+            </div>
+            <div class="col-12">
+              <label class="form-label">Location</label>
+              <input type="text" class="form-control" name="location_text"
+                placeholder="e.g. Vadapalani, Chennai" />
+            </div>
+            <div class="col-12">
+              <label class="form-label">Capacity / Notes</label>
+              <input type="text" class="form-control" name="capacity_note"
+                placeholder="e.g. 2 ICU beds available" />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-color:var(--rql-border);">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-plus-lg"></i> Add Resource
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

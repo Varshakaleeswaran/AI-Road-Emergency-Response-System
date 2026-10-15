@@ -1,0 +1,128 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ResQLink AI — Smart Emergency Response</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+<div class="landing-page">
+
+  <!-- ── Nav ───────────────────────────────────────────────────── -->
+  <nav class="landing-nav">
+    <div class="landing-nav-brand">
+      <div class="brand-icon">
+        <i class="bi bi-activity"></i>
+      </div>
+      <div class="brand-text">
+        <span class="brand-name">ResQLink AI</span>
+        <span class="brand-sub">Emergency Response Portal</span>
+      </div>
+    </div>
+    <div class="landing-nav-actions">
+      <a href="{{ url_for('register') }}" class="btn btn-outline-secondary btn-sm">
+        <i class="bi bi-person-plus"></i> Sign Up
+      </a>
+      <a href="{{ url_for('login') }}" class="btn btn-primary btn-sm">
+        <i class="bi bi-box-arrow-in-right"></i> Log In
+      </a>
+    </div>
+  </nav>
+
+  <!-- ── Hero ──────────────────────────────────────────────────── -->
+  <section class="hero">
+    <div class="hero-content">
+      <div class="hero-badge">
+        <span class="status-dot"></span>
+        Operator-Reviewed Prototype
+      </div>
+      <h1 class="hero-title">
+        Road Incident Review<br />
+        <span>&amp; Emergency Coordination</span>
+      </h1>
+      <p class="hero-sub">
+        ResQLink AI brings citizen reports, operator incident review, and local
+        resource coordination into one prototype portal. CCTV uploads provide
+        vehicle-detection and tracking evidence only; they do not verify accidents
+        or dispatch resources.
+      </p>
+      <div class="hero-actions">
+        <a href="{{ url_for('login') }}" class="btn-hero-primary">
+          <i class="bi bi-box-arrow-in-right"></i>
+          Enter Portal
+        </a>
+        <a href="{{ url_for('register') }}" class="btn-hero-secondary">
+          <i class="bi bi-person-plus"></i>
+          Create Account
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── Features ──────────────────────────────────────────────── -->
+  <section class="features-grid">
+    <div class="feature-card">
+      <div class="feature-icon"><i class="bi bi-camera-video"></i></div>
+      <div class="feature-title">CCTV Vehicle Evidence</div>
+      <p class="feature-desc">
+        YOLO and ByteTrack summarize vehicle detections and tracks from uploaded
+        footage. Accident classification has not been validated or enabled.
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon"><i class="bi bi-exclamation-octagon"></i></div>
+      <div class="feature-title">Incident Management</div>
+      <p class="feature-desc">
+        Operators review citizen and manually entered reports, record evidence,
+        and manage incident status. Human verification is required.
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon"><i class="bi bi-truck"></i></div>
+      <div class="feature-title">Emergency Coordination</div>
+      <p class="feature-desc">
+        Coordinate against locally registered resources. The prototype is not
+        connected to live emergency-service dispatch systems.
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon"><i class="bi bi-flag"></i></div>
+      <div class="feature-title">Citizen Reporting</div>
+      <p class="feature-desc">
+        Citizens can submit accident reports with location, description,
+        and photo/video evidence directly through the public portal.
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon"><i class="bi bi-people"></i></div>
+      <div class="feature-title">Role-Based Access</div>
+      <p class="feature-desc">
+        Separate dashboards and permission sets for Admins, Operators,
+        Responders, Hospitals, Police, Fire units, and the public.
+      </p>
+    </div>
+    <div class="feature-card">
+      <div class="feature-icon"><i class="bi bi-journal-text"></i></div>
+      <div class="feature-title">Full Audit Trail</div>
+      <p class="feature-desc">
+        Every action — logins, incident updates, resource assignments —
+        is logged with timestamp and username for accountability.
+      </p>
+    </div>
+  </section>
+
+  <!-- ── Footer ────────────────────────────────────────────────── -->
+  <footer class="landing-footer">
+    <span>ResQLink AI &copy; 2026 — Road Incident Review &amp; Emergency Coordination</span>
+    <span>Prototype · Human verification required · Not for real emergency dispatch</span>
+  </footer>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

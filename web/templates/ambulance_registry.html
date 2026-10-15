@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Ambulance Registry{% endblock %}
+{% block page_title %}<i class="bi bi-truck me-2" style="color:var(--rql-red);"></i>Ambulance Registry{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2 class="page-title">Ambulance Registry</h2>
+    <span class="page-subtitle">Fleet registry — {{ ambulances|length }} units</span>
+  </div>
+  {% if has_permission(user.role, 'manage_registries') %}
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addAmbModal"><i class="bi bi-plus-lg"></i> Add Ambulance</button>
+  {% endif %}
+</div>
+
+<div class="row g-3 mb-4">
+  {% set avail = ambulances|selectattr('operational_status','eq','AVAILABLE')|list|length %}
+  {% set dispatched = ambulances|selectattr('operational_status','in',['DISPATCHED','EN_ROUTE','ON_SCENE'])|list|length %}
+  {% set oos = ambulances|selectattr('operational_status','eq','OUT_OF_SERVICE')|list|length %}
+  <div class="col-6 col-md-3"><div class="stat-card green"><div class="stat-icon green"><i class="bi bi-check-circle"></i></div><div class="stat-value">{{ avail }}</div><div class="stat-label">Available</div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card yellow"><div class="stat-icon yellow"><i class="bi bi-arrow-right-circle"></i></div><div class="stat-value">{{ dispatched }}</div><div class="stat-label">Dispatched / En Route</div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card red"><div class="stat-icon red"><i class="bi bi-x-circle"></i></div><div class="stat-value">{{ oos }}</div><div class="stat-label">Out of Service</div></div></div>
+  <div class="col-6 col-md-3"><div class="stat-card accent"><div class="stat-icon accent"><i class="bi bi-truck"></i></div><div class="stat-value">{{ ambulances|length }}</div><div class="stat-label">Total Units</div></div></div>
+</div>
+
+<div class="card">
+  <div class="rql-table-container">
+    {% if ambulances %}
+    <table class="rql-table">
+      <thead><tr><th>Unit ID</th><th>Registration</th><th>Organisation</th><th>Capability</th><th>Driver</th><th>Paramedic</th><th>Base</th><th>Status</th><th>Action</th></tr></thead>
+      <tbody>
+      {% for a in ambulances %}
+      <tr>
+        <td><span class="mono" style="font-weight:700;color:var(--rql-accent);">{{ a.unit_id }}</span></td>
+        <td class="mono" style="font-size:11px;">{{ a.registration_number or '—' }}</td>
+        <td>{{ a.organization or '—' }}</td>
+        <td>
+          <span class="badge-status {% if a.capability in ('Trauma','ICU') %}badge-high{% elif a.capability=='ALS' %}badge-medium{% else %}badge-new{% endif %}">{{ a.capability }}</span>
+        </td>
+        <td style="font-size:12px;">{{ a.driver_name or '—' }}</td>
+        <td style="font-size:12px;">{{ a.paramedic_name or '—' }}</td>
+        <td style="font-size:11px;color:var(--rql-text-muted);">{{ a.base_location or '—' }}</td>
+        <td>
+          <span class="badge-status {% if a.operational_status=='AVAILABLE' %}badge-verified{% elif a.operational_status=='OUT_OF_SERVICE' %}badge-closed{% else %}badge-under-review{% endif %}">{{ a.operational_status }}</span>
+        </td>
+        <td>
+          <form method="post" action="{{ url_for('update_ambulance_status', aid=a.id) }}" class="d-flex gap-1">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+            <select class="form-select form-select-sm" name="status" style="min-width:130px;">
+              {% for s in ['AVAILABLE','DISPATCHED','EN_ROUTE','ON_SCENE','TRANSPORTING','AT_HOSPITAL','OUT_OF_SERVICE'] %}
+              <option {% if s==a.operational_status %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm">Save</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><i class="bi bi-truck"></i><p>No ambulances in registry.</p></div>
+    {% endif %}
+  </div>
+</div>
+
+{% if has_permission(user.role, 'manage_registries') %}
+<div class="modal fade" id="addAmbModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content" style="background:var(--rql-surface);border-color:var(--rql-border);">
+      <div class="modal-header" style="border-color:var(--rql-border);">
+        <h5 class="modal-title" style="font-size:15px;"><i class="bi bi-truck me-2" style="color:var(--rql-accent);"></i>Add Ambulance</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('add_ambulance') }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-4"><label class="form-label">Unit ID *</label><input type="text" class="form-control" name="unit_id" placeholder="AMB-006" required></div>
+            <div class="col-md-4"><label class="form-label">Registration *</label><input type="text" class="form-control" name="registration_number" placeholder="TN09XX1234" required></div>
+            <div class="col-md-4"><label class="form-label">Capability</label>
+              <select class="form-select" name="capability"><option>Basic</option><option>ALS</option><option>ICU</option><option>Trauma</option></select></div>
+            <div class="col-md-6"><label class="form-label">Organisation</label><input type="text" class="form-control" name="organization" placeholder="Hospital / Agency name"></div>
+            <div class="col-md-6"><label class="form-label">Contact</label><input type="text" class="form-control" name="contact_number"></div>
+            <div class="col-md-4"><label class="form-label">Driver Name</label><input type="text" class="form-control" name="driver_name"></div>
+            <div class="col-md-4"><label class="form-label">Paramedic Name</label><input type="text" class="form-control" name="paramedic_name"></div>
+            <div class="col-md-4"><label class="form-label">Crew Count</label><input type="number" class="form-control" name="crew_count" value="2" min="1"></div>
+            <div class="col-12"><label class="form-label">Base Location</label><input type="text" class="form-control" name="base_location"></div>
+            <div class="col-md-6"><label class="form-label">Base Latitude</label><input type="number" step="0.000001" class="form-control" name="base_latitude"></div>
+            <div class="col-md-6"><label class="form-label">Base Longitude</label><input type="number" step="0.000001" class="form-control" name="base_longitude"></div>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-color:var(--rql-border);">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Add to Registry</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Operator Dashboard{% endblock %}
+{% block page_title %}<i class="bi bi-headset me-2" style="color:var(--rql-accent);"></i>Operator Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2 class="page-title">Emergency Operator Console</h2>
+    <span class="page-subtitle">Incidents awaiting review · Dispatch queue · Re-plan alerts</span>
+  </div>
+  <span class="topbar-badge"><span class="status-dot status-dot--live"></span>Live</span>
+</div>
+<div class="row g-3 mb-4">
+  {% for label,val,cls,icon in [
+    ('Total Incidents', stats.total, 'accent', 'exclamation-triangle'),
+    ('Pending Review', stats.new, 'red', 'hourglass-split'),
+    ('Under Review', stats.under_review, 'yellow', 'search'),
+    ('Critical', stats.critical, 'red', 'fire'),
+    ('Reports', stats.reports, 'purple', 'flag'),
+    ('Ambulances Available', stats.ambulances, 'green', 'truck'),
+  ] %}
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="stat-card {{ cls }}">
+      <div class="stat-icon {{ cls }}"><i class="bi bi-{{ icon }}"></i></div>
+      <div class="stat-value" data-count="{{ val }}">{{ val }}</div>
+      <div class="stat-label">{{ label }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% if replans %}
+<div class="card mb-4" style="border-color:var(--rql-yellow);">
+  <div class="card-header" style="background:rgba(234,179,8,.08);">
+    <i class="bi bi-arrow-repeat" style="color:var(--rql-yellow);"></i>
+    <span class="card-title" style="color:var(--rql-yellow);">⚠ Re-plan Alerts ({{ replans|length }})</span>
+  </div>
+  <div class="rql-table-container">
+    <table class="rql-table">
+      <thead><tr><th>Incident</th><th>Trigger Reason</th><th>Severity</th><th>Action</th></tr></thead>
+      <tbody>
+      {% for rp in replans %}
+      <tr>
+        <td><a href="{{ url_for('incident_detail', iid=rp.incident_id) }}" class="mono">#{{ rp.incident_id }}</a></td>
+        <td>{{ rp.trigger_reason }}</td>
+        <td><span class="badge-status badge-{{ rp.severity|lower }}">{{ rp.severity }}</span></td>
+        <td class="d-flex gap-1">
+          <form method="post" action="{{ url_for('approve_replan', iid=rp.incident_id, rid=rp.id) }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+            <button class="btn btn-success btn-sm"><i class="bi bi-check2"></i> Approve</button>
+          </form>
+          <form method="post" action="{{ url_for('reject_replan', iid=rp.incident_id, rid=rp.id) }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+            <button class="btn btn-danger btn-sm"><i class="bi bi-x"></i> Reject</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-exclamation-triangle" style="color:var(--rql-accent);"></i><span class="card-title">Incidents Awaiting Action</span><a href="{{ url_for('incidents') }}" class="ms-auto btn btn-outline-secondary btn-sm">All incidents</a></div>
+      <div class="rql-table-container">
+        {% if pending %}
+        <table class="rql-table">
+          <thead><tr><th>#</th><th>Vehicle</th><th>Severity</th><th>Status</th><th>Lifecycle</th><th>Location</th><th></th></tr></thead>
+          <tbody>
+          {% for inc in pending %}
+          <tr>
+            <td class="mono">#{{ inc.id }}</td>
+            <td>{{ inc.vehicle_type or '—' }} ID {{ inc.vehicle_id }}</td>
+            <td><span class="badge-status badge-{{ inc.severity|lower }}">{{ inc.severity }}</span></td>
+            <td><span class="badge-status badge-{{ inc.status|replace(' ','-')|lower }}">{{ inc.status }}</span></td>
+            <td style="font-size:10px;color:var(--rql-text-muted);">{{ inc.lifecycle_status or 'REPORTED' }}</td>
+            <td style="font-size:11px;color:var(--rql-text-muted);">{{ (inc.location_text or '—')[:30] }}</td>
+            <td><a href="{{ url_for('incident_detail', iid=inc.id) }}" class="btn btn-primary btn-sm">Review</a></td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state"><i class="bi bi-check-circle" style="color:var(--rql-green);"></i><p>All incidents reviewed.</p></div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-truck" style="color:var(--rql-blue);"></i><span class="card-title">Resource Status</span></div>
+      <div class="card-body p-0">
+        {% for res in resources %}
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-bottom:1px solid var(--rql-border);font-size:12px;">
+          <div>
+            <div style="font-weight:600;">{{ res.resource_name }}</div>
+            <div style="font-size:10px;color:var(--rql-text-muted);">{{ res.agency_type|upper }}</div>
+          </div>
+          <span class="badge-status {% if res.status=='Available' %}badge-verified{% elif res.status=='Busy' %}badge-high{% else %}badge-closed{% endif %}">{{ res.status }}</span>
+        </div>
+        {% else %}
+        <div class="empty-state"><i class="bi bi-truck"></i><p>No resources.</p></div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

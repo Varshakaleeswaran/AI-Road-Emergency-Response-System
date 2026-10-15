@@ -1,0 +1,561 @@
+
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token() }}">
+  <title>{% block title %}ResQLink AI{% endblock %} — Smart Emergency Response</title>
+
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+
+  {% block extra_css %}{% endblock %}
+</head>
+<body>
+
+{% if user %}
+<!-- Sidebar -->
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-brand">
+    <div class="brand-icon"><i class="bi bi-activity"></i></div>
+    <div class="brand-text">
+      <span class="brand-name">ResQLink AI</span>
+      <span class="brand-sub">Emergency Response Portal</span>
+    </div>
+  </div>
+
+  <div class="sidebar-user">
+    <div class="user-avatar">{{ user.username[0].upper() }}</div>
+    <div class="user-info">
+      <span class="user-name">{{ user.username }}</span>
+      <span class="user-role">{{ user.role_name }}</span>
+    </div>
+    <form method="post" action="{{ url_for('logout') }}" class="m-0">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
+      <button type="submit" class="logout-btn border-0" title="Logout" aria-label="Logout">
+        <i class="bi bi-box-arrow-right"></i>
+      </button>
+    </form>
+  </div>
+
+  <nav class="sidebar-nav">
+    <div class="nav-section-label">Overview</div>
+    <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+      <i class="bi bi-speedometer2"></i><span>Dashboard</span>
+    </a>
+
+    {% if user.role in ('admin', 'operator', 'responder', 'police', 'fire', 'traffic', 'viewer') %}
+    <div class="nav-section-label">Incidents</div>
+    <a href="{{ url_for('incidents') }}" class="nav-link {% if request.endpoint in ('incidents', 'incident_detail') %}active{% endif %}">
+      <i class="bi bi-exclamation-triangle"></i><span>All Incidents</span>
+    </a>
+
+    {% if user.role in ('admin', 'operator') %}
+    <a href="{{ url_for('new_incident') }}" class="nav-link {% if request.endpoint == 'new_incident' %}active{% endif %}">
+      <i class="bi bi-plus-circle"></i><span>New Incident</span>
+    </a>
+    {% endif %}
+    {% endif %}
+
+    <div class="nav-section-label">Response</div>
+
+    {% if user.role in ('admin', 'operator', 'responder', 'police', 'fire', 'traffic', 'viewer') %}
+    <a href="{{ url_for('live_map') }}" class="nav-link {% if request.endpoint in ('live_map', 'incident_map') %}active{% endif %}">
+      <i class="bi bi-map"></i><span>Live Map</span>
+    </a>
+    {% endif %}
+
+    {% if user.role != 'viewer' %}
+    <a href="{{ url_for('reports') }}" class="nav-link {% if request.endpoint == 'reports' %}active{% endif %}">
+      <i class="bi bi-flag"></i><span>Citizen Reports</span>
+    </a>
+    {% endif %}
+
+    {% if user.role in ('admin', 'operator') %}
+    <a href="{{ url_for('dispatch_console') }}" class="nav-link {% if request.endpoint == 'dispatch_console' %}active{% endif %}">
+      <i class="bi bi-send-check"></i><span>Dispatch Console</span>
+    </a>
+    <a href="{{ url_for('resources') }}" class="nav-link {% if request.endpoint == 'resources' %}active{% endif %}">
+      <i class="bi bi-truck"></i><span>Resources</span>
+    </a>
+    {% endif %}
+
+    {% if user.role == 'responder' %}
+    <a href="{{ url_for('driver_tracking') }}" class="nav-link {% if request.endpoint == 'driver_tracking' %}active{% endif %}">
+      <i class="bi bi-geo-alt-fill"></i><span>Driver GPS</span>
+    </a>
+    {% endif %}
+
+    {% if user.role in ('admin', 'operator', 'hospital', 'responder') %}
+    <div class="nav-section-label">Registries</div>
+
+    {% if user.role in ('admin', 'operator', 'responder') %}
+    <a href="{{ url_for('ambulance_registry') }}" class="nav-link {% if request.endpoint == 'ambulance_registry' %}active{% endif %}">
+      <i class="bi bi-truck-front"></i><span>Ambulances</span>
+    </a>
+    {% endif %}
+
+    {% if user.role in ('admin', 'operator', 'hospital') %}
+    <a href="{{ url_for('hospital_registry') }}" class="nav-link {% if request.endpoint == 'hospital_registry' %}active{% endif %}">
+      <i class="bi bi-hospital"></i><span>Hospitals</span>
+    </a>
+    {% endif %}
+
+    {% if user.role in ('admin', 'operator') %}
+    <a href="{{ url_for('departments') }}" class="nav-link {% if request.endpoint == 'departments' %}active{% endif %}">
+      <i class="bi bi-shield-check"></i><span>Departments</span>
+    </a>
+    {% endif %}
+    {% endif %}
+
+    {% if user.role in ('admin', 'operator') %}
+    <div class="nav-section-label">Admin</div>
+
+    <a href="{{ url_for('cameras') }}" class="nav-link {% if request.endpoint == 'cameras' %}active{% endif %}">
+      <i class="bi bi-camera-video"></i><span>Cameras</span>
+    </a>
+
+    {% if user.role == 'admin' %}
+    <a href="{{ url_for('onboarding') }}" class="nav-link {% if request.endpoint == 'onboarding' %}active{% endif %}">
+      <i class="bi bi-person-plus"></i><span>Onboard Staff</span>
+    </a>
+    <a href="{{ url_for('user_management') }}" class="nav-link {% if request.endpoint == 'user_management' %}active{% endif %}">
+      <i class="bi bi-people"></i><span>Users</span>
+    </a>
+    <a href="{{ url_for('audit_log') }}" class="nav-link {% if request.endpoint == 'audit_log' %}active{% endif %}">
+      <i class="bi bi-journal-text"></i><span>Audit Log</span>
+    </a>
+    <a href="{{ url_for('blockchain') }}" class="nav-link {% if request.endpoint == 'blockchain' %}active{% endif %}">
+      <i class="bi bi-link-45deg"></i><span>Blockchain</span>
+    </a>
+    {% endif %}
+    {% endif %}
+  </nav>
+
+  <div class="sidebar-footer">
+    <i class="bi bi-shield-exclamation me-1"></i>
+    Prototype — not for real dispatch
+  </div>
+</div>
+
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+{% endif %}
+
+<!-- Main layout -->
+<div class="main-wrapper {% if not user %}no-sidebar{% endif %}">
+  {% if user %}
+  <header class="topbar">
+    <button type="button" class="topbar-toggle" id="sidebarToggle"
+            onclick="toggleSidebar()" aria-label="Toggle navigation">
+      <i class="bi bi-list"></i>
+    </button>
+
+    <div class="topbar-title">{% block page_title %}{% endblock %}</div>
+
+    <div class="topbar-actions">
+      <div class="topbar-badge">Prototype portal</div>
+
+      <!-- Notification bell -->
+      <div class="notif-bell-wrap" style="position:relative;">
+        <button type="button" class="topbar-notif-btn" id="notifBellBtn"
+                onclick="toggleNotifPanel()" title="Notifications"
+                aria-label="Open notifications"
+                aria-expanded="false"
+                style="background:none;border:none;color:var(--rql-text-muted);font-size:18px;cursor:pointer;position:relative;padding:4px 6px;">
+          <i class="bi bi-bell"></i>
+          <span id="notifBadge"
+                style="display:none;position:absolute;top:0;right:0;min-width:16px;height:16px;padding:0 4px;background:var(--rql-red);border-radius:10px;font-size:9px;font-weight:700;color:#fff;align-items:center;justify-content:center;">0</span>
+        </button>
+
+        <div id="notifPanel"
+             style="display:none;position:absolute;top:36px;right:0;width:300px;max-width:calc(100vw - 32px);background:var(--rql-surface);border:1px solid var(--rql-border);border-radius:var(--radius-lg);box-shadow:var(--shadow-lg);z-index:2000;max-height:380px;overflow-y:auto;">
+          <div style="padding:10px 14px;border-bottom:1px solid var(--rql-border);display:flex;justify-content:space-between;align-items:center;">
+            <span style="font-size:12px;font-weight:700;">Notifications</span>
+            <button type="button" onclick="markAllRead()"
+                    style="background:none;border:none;color:var(--rql-accent);font-size:11px;cursor:pointer;">
+              Mark all read
+            </button>
+          </div>
+          <div id="notifList" style="padding:8px 0;">
+            <div style="text-align:center;padding:16px;color:var(--rql-text-muted);font-size:12px;">
+              Loading…
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <span class="topbar-user d-none d-md-flex">
+        <span class="user-avatar-sm">{{ user.username[0].upper() }}</span>
+        {{ user.username }}
+      </span>
+    </div>
+  </header>
+  {% endif %}
+
+  {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    <div class="flash-container">
+      {% for cat, msg in messages %}
+      <div class="alert alert-{{ cat }} alert-dismissible fade show" role="alert">
+        <i class="bi bi-{% if cat == 'success' %}check-circle{% elif cat == 'danger' %}x-circle{% elif cat == 'warning' %}exclamation-triangle{% else %}info-circle{% endif %} me-2"></i>
+        {{ msg }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+      </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+  {% endwith %}
+
+  <main class="main-content">
+    {% block content %}{% endblock %}
+  </main>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.4/dist/chart.umd.min.js"></script>
+<script src="https://cdn.socket.io/4.7.5/socket.io.min.js"></script>
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+
+{% block extra_js %}{% endblock %}
+
+{% if user %}
+<script>
+"use strict";
+
+// Sidebar controls
+function toggleSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("sidebarOverlay");
+  if (!sidebar || !overlay) return;
+
+  sidebar.classList.toggle("open");
+  overlay.classList.toggle("visible");
+}
+
+function closeSidebar() {
+  const sidebar = document.getElementById("sidebar");
+  const overlay = document.getElementById("sidebarOverlay");
+  if (sidebar) sidebar.classList.remove("open");
+  if (overlay) overlay.classList.remove("visible");
+}
+
+// Live socket updates
+if (typeof window.io === "function") {
+  const socket = window.io();
+
+  socket.on("new_notification", function () {
+    loadNotifications();
+  });
+
+  socket.on("incident_update", function (data) {
+    const toastContainer =
+      document.getElementById("liveToastContainer") || createToastContainer();
+
+    const toast = document.createElement("div");
+    toast.className = "alert alert-info alert-dismissible fade show shadow-lg mb-2";
+    toast.style.cssText =
+      "background:#0f172a;border:1px solid #38bdf8;color:#f8fafc;font-size:13px;z-index:9999;border-radius:10px;padding:12px 16px;";
+
+    const row = document.createElement("div");
+    row.className = "d-flex align-items-center gap-2";
+
+    const icon = document.createElement("i");
+    icon.className = "bi bi-broadcast";
+    icon.style.cssText = "color:#38bdf8;font-size:16px;";
+
+    const message = document.createElement("div");
+    const strong = document.createElement("strong");
+    strong.textContent = "Real-time Update: ";
+    message.appendChild(strong);
+    message.appendChild(document.createTextNode(
+      "Incident #" + String(data.id ?? "") + " changed to "
+    ));
+
+    const status = document.createElement("span");
+    status.className = "badge bg-primary";
+    status.textContent = String(
+      data.lifecycle_status || data.status || "Updated"
+    );
+    message.appendChild(status);
+
+    const closeButton = document.createElement("button");
+    closeButton.type = "button";
+    closeButton.className = "btn-close btn-close-white ms-auto";
+    closeButton.setAttribute("data-bs-dismiss", "alert");
+    closeButton.setAttribute("aria-label", "Close");
+
+    row.append(icon, message, closeButton);
+    toast.appendChild(row);
+    toastContainer.appendChild(toast);
+
+    window.setTimeout(function () {
+      toast.remove();
+    }, 6000);
+
+    const path = window.location.pathname;
+    if (path.includes("/incidents") || path.includes("/map")) {
+      window.setTimeout(function () {
+        window.location.reload();
+      }, 1200);
+    }
+  });
+}
+
+function createToastContainer() {
+  const container = document.createElement("div");
+  container.id = "liveToastContainer";
+  container.style.cssText =
+    "position:fixed;bottom:20px;right:20px;z-index:99999;max-width:380px;width:calc(100% - 40px);";
+  document.body.appendChild(container);
+  return container;
+}
+
+// Notifications
+function toggleNotifPanel() {
+  const panel = document.getElementById("notifPanel");
+  const button = document.getElementById("notifBellBtn");
+  if (!panel) return;
+
+  const isOpening = panel.style.display === "none";
+  panel.style.display = isOpening ? "block" : "none";
+
+  if (button) button.setAttribute("aria-expanded", String(isOpening));
+  if (isOpening) loadNotifications();
+}
+
+document.addEventListener("click", function (event) {
+  const wrapper = event.target.closest(".notif-bell-wrap");
+  if (wrapper) return;
+
+  const panel = document.getElementById("notifPanel");
+  const button = document.getElementById("notifBellBtn");
+
+  if (panel) panel.style.display = "none";
+  if (button) button.setAttribute("aria-expanded", "false");
+});
+
+async function loadNotifications() {
+  const badge = document.getElementById("notifBadge");
+  const list = document.getElementById("notifList");
+  if (!badge || !list) return;
+
+  try {
+    const response = await fetch("/api/notifications", {
+      headers: { "Accept": "application/json" },
+      credentials: "same-origin"
+    });
+
+    if (!response.ok) throw new Error("Unable to load notifications");
+
+    const data = await response.json();
+    const notifications = Array.isArray(data.notifications)
+      ? data.notifications
+      : [];
+
+    const unread = Number(data.unread) || 0;
+
+    if (unread > 0) {
+      badge.style.display = "flex";
+      badge.textContent = unread > 9 ? "9+" : String(unread);
+    } else {
+      badge.style.display = "none";
+      badge.textContent = "0";
+    }
+
+    list.replaceChildren();
+
+    if (notifications.length === 0) {
+      const empty = document.createElement("div");
+      empty.style.cssText =
+        "text-align:center;padding:16px;color:var(--rql-text-muted);font-size:12px;";
+      empty.textContent = "No notifications";
+      list.appendChild(empty);
+      return;
+    }
+
+    const icons = {
+      NEW_INCIDENT: "exclamation-triangle",
+      DISPATCH: "truck",
+      RE_PLAN: "arrow-repeat",
+      HOSPITAL_ALERT: "hospital",
+      SEVERITY_ESCALATION: "fire",
+      CV_EVIDENCE_READY: "camera-video",
+      CV_ANALYSIS_FAILED: "exclamation-circle",
+      INFO: "info-circle"
+    };
+
+    const colors = {
+      NEW_INCIDENT: "var(--rql-accent)",
+      DISPATCH: "var(--rql-green)",
+      RE_PLAN: "var(--rql-yellow)",
+      HOSPITAL_ALERT: "var(--rql-blue)",
+      SEVERITY_ESCALATION: "var(--rql-red)",
+      CV_EVIDENCE_READY: "var(--rql-blue)",
+      CV_ANALYSIS_FAILED: "var(--rql-red)",
+      INFO: "var(--rql-text-muted)"
+    };
+
+    notifications.forEach(function (notification) {
+      const item = document.createElement("div");
+      item.style.cssText =
+        "padding:10px 14px;border-bottom:1px solid var(--rql-border);cursor:pointer;transition:background .15s;";
+      item.style.background = notification.read
+        ? "transparent"
+        : "rgba(249,115,22,.04)";
+      item.tabIndex = 0;
+      item.setAttribute("role", "button");
+
+      function markItemRead() {
+        markRead(notification.id, item);
+      }
+
+      item.addEventListener("click", markItemRead);
+      item.addEventListener("keydown", function (event) {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          markItemRead();
+        }
+      });
+
+      item.addEventListener("mouseover", function () {
+        item.style.background = "var(--rql-surface2)";
+      });
+
+      item.addEventListener("mouseout", function () {
+        item.style.background = notification.read
+          ? "transparent"
+          : "rgba(249,115,22,.04)";
+      });
+
+      const row = document.createElement("div");
+      row.style.cssText = "display:flex;align-items:flex-start;gap:8px;";
+
+      const icon = document.createElement("i");
+      const type = String(notification.notif_type || "INFO");
+      icon.className = "bi bi-" + (icons[type] || "info-circle");
+      icon.style.cssText =
+        "color:" + (colors[type] || "var(--rql-text-muted)") +
+        ";font-size:14px;margin-top:1px;flex-shrink:0;";
+
+      const content = document.createElement("div");
+      content.style.minWidth = "0";
+
+      const title = document.createElement("div");
+      title.style.cssText =
+        "font-size:12px;font-weight:" +
+        (notification.read ? "400" : "600") +
+        ";color:var(--rql-text);overflow-wrap:anywhere;";
+      title.textContent = String(notification.title || "Notification");
+
+      const date = document.createElement("div");
+      date.style.cssText =
+        "font-size:11px;color:var(--rql-text-muted);margin-top:2px;";
+      date.textContent = String(notification.created_at || "").substring(0, 16);
+
+      content.append(title, date);
+      row.append(icon, content);
+
+      if (!notification.read) {
+        const unreadDot = document.createElement("span");
+        unreadDot.style.cssText =
+          "width:6px;height:6px;border-radius:50%;background:var(--rql-accent);flex-shrink:0;margin-left:auto;margin-top:4px;";
+        unreadDot.setAttribute("aria-label", "Unread");
+        row.appendChild(unreadDot);
+      }
+
+      item.appendChild(row);
+      list.appendChild(item);
+    });
+  } catch (error) {
+    console.error("Notification loading failed:", error);
+    list.replaceChildren();
+
+    const errorMessage = document.createElement("div");
+    errorMessage.style.cssText =
+      "text-align:center;padding:16px;color:var(--rql-text-muted);font-size:12px;";
+    errorMessage.textContent = "Unable to load notifications. Try again.";
+    list.appendChild(errorMessage);
+  }
+}
+
+async function markRead(id, element) {
+  try {
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    const csrfToken = csrfMeta ? csrfMeta.content : "";
+
+    const response = await fetch(
+      "/api/notifications/" + encodeURIComponent(id) + "/read",
+      {
+        method: "POST",
+        credentials: "same-origin",
+        headers: {
+          "X-CSRF-Token": csrfToken,
+          "Accept": "application/json"
+        }
+      }
+    );
+
+    if (!response.ok) throw new Error("Unable to mark notification as read");
+
+    if (element) element.style.background = "transparent";
+    await loadNotifications();
+  } catch (error) {
+    console.error("Mark-read failed:", error);
+  }
+}
+
+async function markAllRead() {
+  try {
+    const csrfMeta = document.querySelector('meta[name="csrf-token"]');
+    const csrfToken = csrfMeta ? csrfMeta.content : "";
+
+    const response = await fetch("/api/notifications/read_all", {
+      method: "POST",
+      credentials: "same-origin",
+      headers: {
+        "X-CSRF-Token": csrfToken,
+        "Accept": "application/json"
+      }
+    });
+
+    if (!response.ok) throw new Error("Unable to mark notifications as read");
+
+    await loadNotifications();
+  } catch (error) {
+    console.error("Mark-all-read failed:", error);
+  }
+}
+
+// Load notifications on page load and refresh periodically.
+loadNotifications();
+window.setInterval(loadNotifications, 30000);
+</script>
+
+<!-- Admin/operator actions -->
+{% if user.role in ('admin', 'operator') %}
+<a href="{{ url_for('response_centre') }}"
+   title="Open the emergency response centre"
+   style="position:fixed;right:24px;bottom:82px;z-index:1000;background:#157f68;color:#fff;padding:12px 16px;border-radius:8px;text-decoration:none;font-weight:700;box-shadow:0 4px 18px rgba(0,0,0,.28);">
+  <i class="bi bi-broadcast-pin"></i> Live Response
+</a>
+
+<a href="{{ url_for('cctv_demo_upload') }}"
+   title="Upload authorised CCTV demo video"
+   style="position:fixed;right:24px;bottom:24px;z-index:1000;background:#f58220;color:#fff;padding:12px 16px;border-radius:8px;text-decoration:none;font-weight:700;box-shadow:0 4px 18px rgba(0,0,0,.28);">
+  <i class="bi bi-camera-video"></i> CCTV Demo Upload
+</a>
+{% endif %}
+
+<!-- Alerts link -->
+<a href="{{ url_for('response_alerts') }}"
+   title="View alerts for your role"
+   style="position:fixed;left:24px;bottom:24px;z-index:1000;background:#315f9d;color:#fff;padding:12px 16px;border-radius:8px;text-decoration:none;font-weight:700;box-shadow:0 4px 18px rgba(0,0,0,.28);">
+  <i class="bi bi-bell"></i> My Alerts
+</a>
+{% endif %}
+
+</body>
+</html>

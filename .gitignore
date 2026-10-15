@@ -1,0 +1,61 @@
+﻿# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Local databases and runtime state
+*.db
+*.sqlite
+*.sqlite3
+instance/
+
+# ML model weights
+*.pt
+*.pth
+*.onnx
+
+# Videos and large media
+*.mp4
+*.avi
+*.mov
+*.mkv
+*.webm
+
+# Generated outputs
+runs/
+uploads/
+data/ACCIDENT/real_videos/
+data/ACCIDENT/tracking/
+vehicle_movement*.csv
+vehicle_tracking_boxes.csv
+vehicle_trajectory.csv
+vehicle_proximity.csv
+suspicious_movement.csv
+close_vehicle_pairs.csv
+
+# Backups
+backup_before_upgrade/
+backup_rbac_*/
+*.bak
+*.backup_*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+data/
+
+
+web/.agents/
+

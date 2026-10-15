@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Citizen Dashboard{% endblock %}
+{% block page_title %}<i class="bi bi-person-heart me-2" style="color:var(--rql-accent);"></i>Citizen Dashboard{% endblock %}
+{% block content %}
+<div class="page-header"><div class="page-header-left"><h2 class="page-title">My safety reports</h2><span class="page-subtitle">Report an incident and follow its verification status.</span></div><a class="btn btn-primary" href="{{ url_for('reports') }}"><i class="bi bi-plus-circle me-1"></i>Submit report</a></div>
+<div class="card"><div class="card-header"><i class="bi bi-flag" style="color:var(--rql-accent);"></i><span class="card-title">My submitted reports</span></div><div class="rql-table-container">{% if reports %}<table class="rql-table"><thead><tr><th>Submitted</th><th>Location</th><th>Status</th><th>Linked incident</th></tr></thead><tbody>{% for report in reports %}<tr><td>{{ report.created_at[:16] }}</td><td>{{ report.location_text }}</td><td><span class="badge-status badge-under-review">{{ report.status }}</span></td><td>{% if report.linked_incident_id %}<span class="mono">#{{ report.linked_incident_id }}</span>{% else %}Awaiting GPS/verification{% endif %}</td></tr>{% endfor %}</tbody></table>{% else %}<div class="empty-state"><i class="bi bi-shield-check"></i><p>No reports yet. If it is safe to do so, submit an accurate report with your location.</p></div>{% endif %}</div></div>
+{% endblock %}

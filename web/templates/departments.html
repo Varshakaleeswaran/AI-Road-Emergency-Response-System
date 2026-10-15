@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Departments{% endblock %}
+{% block page_title %}<i class="bi bi-shield-check me-2" style="color:var(--rql-blue);"></i>Emergency Departments{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2 class="page-title">Emergency Departments Registry</h2>
+    <span class="page-subtitle">Police · Fire · Traffic · Rescue</span>
+  </div>
+  {% if has_permission(user.role,'manage_registries') %}
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addDeptModal"><i class="bi bi-plus-lg"></i> Add Department</button>
+  {% endif %}
+</div>
+
+<ul class="nav nav-tabs mb-3" id="deptTabs">
+  {% for dtype, icon in [('police','shield-check'),('fire','fire'),('traffic','stoplights'),('rescue','life-preserver')] %}
+  <li class="nav-item">
+    <button class="nav-link {% if loop.first %}active{% endif %}" data-bs-toggle="tab" data-bs-target="#tab-{{ dtype }}">
+      <i class="bi bi-{{ icon }} me-1"></i>{{ dtype|title }}
+      {% if by_type.get(dtype) %}<span class="nav-badge ms-1" style="background:var(--rql-blue);">{{ by_type[dtype]|length }}</span>{% endif %}
+    </button>
+  </li>
+  {% endfor %}
+</ul>
+
+<div class="tab-content">
+  {% for dtype, icon, color in [
+    ('police','shield-check','var(--rql-blue)'),
+    ('fire','fire','var(--rql-accent)'),
+    ('traffic','stoplights','var(--rql-yellow)'),
+    ('rescue','life-preserver','var(--rql-green)')
+  ] %}
+  <div class="tab-pane fade {% if loop.first %}show active{% endif %}" id="tab-{{ dtype }}">
+    {% set depts = by_type.get(dtype, []) %}
+    {% if depts %}
+    <div class="resource-grid">
+      {% for d in depts %}
+      <div class="resource-card">
+        <div class="resource-card-head">
+          <div class="resource-type-icon" style="background:rgba(59,130,246,.1);font-size:18px;">
+            <i class="bi bi-{{ icon }}" style="color:{{ color }};"></i>
+          </div>
+          <div>
+            <div class="resource-name">{{ d.name }}</div>
+            <div class="resource-loc"><span class="mono" style="font-size:10px;">{{ d.dept_code }}</span></div>
+          </div>
+        </div>
+        <div class="d-flex align-items-center justify-content-between mb-2">
+          <span class="badge-status {% if d.operational_status=='Active' %}badge-verified{% else %}badge-closed{% endif %}">{{ d.operational_status }}</span>
+          <span style="font-size:11px;color:var(--rql-text-muted);">{{ d.available_units }}/{{ d.unit_count }} units</span>
+        </div>
+        <div class="meta-grid" style="grid-template-columns:1fr 1fr;">
+          <div class="meta-item"><span class="meta-key">Jurisdiction</span><span class="meta-val" style="font-size:11px;">{{ d.jurisdiction or '—' }}</span></div>
+          <div class="meta-item"><span class="meta-key">Contact</span><span class="meta-val mono" style="font-size:10px;">{{ d.contact_number or '—' }}</span></div>
+        </div>
+        <div style="font-size:11px;color:var(--rql-text-muted);margin-top:6px;"><i class="bi bi-geo-alt"></i> {{ d.address or '—' }}</div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="card"><div class="empty-state"><i class="bi bi-{{ icon }}"></i><p>No {{ dtype }} departments registered.</p></div></div>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+
+{% if has_permission(user.role,'manage_registries') %}
+<div class="modal fade" id="addDeptModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content" style="background:var(--rql-surface);border-color:var(--rql-border);">
+      <div class="modal-header" style="border-color:var(--rql-border);">
+        <h5 class="modal-title" style="font-size:15px;"><i class="bi bi-shield-check me-2" style="color:var(--rql-blue);"></i>Add Department</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('add_department') }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-4"><label class="form-label">Dept Code *</label><input type="text" class="form-control" name="dept_code" placeholder="POLICE-004" required></div>
+            <div class="col-md-4"><label class="form-label">Type</label>
+              <select class="form-select" name="dept_type"><option>police</option><option>fire</option><option>traffic</option><option>rescue</option></select></div>
+            <div class="col-md-4"><label class="form-label">Name *</label><input type="text" class="form-control" name="name" required></div>
+            <div class="col-md-6"><label class="form-label">Jurisdiction</label><input type="text" class="form-control" name="jurisdiction"></div>
+            <div class="col-md-6"><label class="form-label">Contact</label><input type="text" class="form-control" name="contact_number"></div>
+            <div class="col-12"><label class="form-label">Address</label><input type="text" class="form-control" name="address"></div>
+            <div class="col-md-3"><label class="form-label">Total Units</label><input type="number" class="form-control" name="unit_count" value="0" min="0"></div>
+            <div class="col-md-3"><label class="form-label">Available</label><input type="number" class="form-control" name="available_units" value="0" min="0"></div>
+            <div class="col-md-3"><label class="form-label">Latitude</label><input type="number" step="0.000001" class="form-control" name="latitude"></div>
+            <div class="col-md-3"><label class="form-label">Longitude</label><input type="number" step="0.000001" class="form-control" name="longitude"></div>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-color:var(--rql-border);">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Add Department</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

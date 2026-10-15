@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}<i class="bi bi-speedometer2 me-2" style="color:var(--rql-accent);"></i>Admin Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2 class="page-title">System Overview</h2>
+    <span class="page-subtitle">Full administrative dashboard</span>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <span class="topbar-badge"><span class="status-dot status-dot--live"></span>Live</span>
+    <span id="live-clock" style="font-size:11px;color:var(--rql-text-muted);font-family:'JetBrains Mono',monospace;"></span>
+  </div>
+</div>
+<div class="row g-3 mb-4">
+  {% for label,val,cls,icon in [
+    ('Total Incidents', stats.total, 'accent', 'exclamation-triangle'),
+    ('New', stats.new, 'blue', 'hourglass-split'),
+    ('Under Review', stats.under_review, 'yellow', 'search'),
+    ('Verified', stats.verified, 'green', 'check-circle'),
+    ('Critical', stats.critical, 'red', 'fire'),
+    ('Cameras Online', stats.cameras_online, 'purple', 'camera-video'),
+  ] %}
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="stat-card {{ cls }}">
+      <div class="stat-icon {{ cls }}"><i class="bi bi-{{ icon }}"></i></div>
+      <div class="stat-value" data-count="{{ val }}">{{ val }}</div>
+      <div class="stat-label">{{ label }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-pie-chart" style="color:var(--rql-accent);"></i><span class="card-title">By Severity</span></div>
+      <div class="card-body"><div class="chart-container"><canvas id="sevChart"></canvas></div></div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-bar-chart" style="color:var(--rql-blue);"></i><span class="card-title">By Status</span></div>
+      <div class="card-body"><div class="chart-container"><canvas id="stChart"></canvas></div></div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header"><i class="bi bi-graph-up" style="color:var(--rql-green);"></i><span class="card-title">7-Day Trend</span></div>
+      <div class="card-body"><div class="chart-container"><canvas id="trendChart"></canvas></div></div>
+    </div>
+  </div>
+</div>
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-exclamation-triangle" style="color:var(--rql-accent);"></i><span class="card-title">Recent Incidents</span><a href="{{ url_for('incidents') }}" class="ms-auto btn btn-outline-secondary btn-sm">View all</a></div>
+      <div class="rql-table-container">
+        {% if recent_incidents %}
+        <table class="rql-table">
+          <thead><tr><th>#</th><th>Vehicle</th><th>Type</th><th>Severity</th><th>Status</th><th>Lifecycle</th><th>Date</th></tr></thead>
+          <tbody>
+          {% for inc in recent_incidents %}
+          <tr onclick="location='{{ url_for('incident_detail', iid=inc.id) }}'" style="cursor:pointer;">
+            <td class="mono" style="color:var(--rql-text-muted);">#{{ inc.id }}</td>
+            <td>ID {{ inc.vehicle_id }} · F{{ inc.frame }}</td>
+            <td>{{ inc.vehicle_type or '—' }}</td>
+            <td><span class="badge-status badge-{{ inc.severity|lower }}">{{ inc.severity }}</span></td>
+            <td><span class="badge-status badge-{{ inc.status|replace(' ','-')|lower }}">{{ inc.status }}</span></td>
+            <td><span class="badge-status" style="background:rgba(59,130,246,.1);color:var(--rql-blue);border:1px solid rgba(59,130,246,.2);font-size:10px;">{{ inc.lifecycle_status or 'REPORTED' }}</span></td>
+            <td style="color:var(--rql-text-muted);font-size:11px;">{{ inc.created_at[:10] }}</td>
+          </tr>
+          {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state"><i class="bi bi-inbox"></i><p>No incidents yet.</p></div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-4">
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-people" style="color:var(--rql-blue);"></i><span class="card-title">Quick Links</span></div>
+      <div class="card-body d-flex flex-column gap-2">
+        <a href="{{ url_for('ambulance_registry') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-truck"></i> Ambulance Registry</a>
+        <a href="{{ url_for('hospital_registry') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-hospital"></i> Hospital Registry</a>
+        <a href="{{ url_for('departments') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-shield-check"></i> Departments</a>
+        <a href="{{ url_for('cameras') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-camera-video"></i> Camera Management</a>
+        <a href="{{ url_for('blockchain') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-link-45deg"></i> Blockchain Audit</a>
+        <a href="{{ url_for('user_management') }}" class="btn btn-outline-secondary btn-sm"><i class="bi bi-people"></i> User Management</a>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-header"><i class="bi bi-flag" style="color:var(--rql-purple);"></i><span class="card-title">Latest Reports</span></div>
+      <div class="card-body p-0">
+        <div class="timeline px-3 py-2">
+        {% for rpt in recent_reports %}
+        <div class="timeline-item">
+          <div class="timeline-dot"></div>
+          <div class="timeline-body">
+            <div class="timeline-action">{{ rpt.location_text[:35] }}{% if rpt.location_text|length > 35 %}…{% endif %}</div>
+            <div class="timeline-meta">{{ rpt.reporter_username }} · {{ rpt.created_at[:10] }}</div>
+          </div>
+        </div>
+        {% else %}
+        <div class="empty-state"><i class="bi bi-flag"></i><p>No reports.</p></div>
+        {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block extra_js %}
+<script>
+const sl={{ sev_labels|safe }},sc={{ sev_counts|safe }},stl={{ st_labels|safe }},stc={{ st_counts|safe }},tl={{ trend_labels|safe }},tc={{ trend_counts|safe }};
+const SC={'Critical':'rgba(239,68,68,.7)','High':'rgba(239,68,68,.5)','Medium':'rgba(234,179,8,.7)','Low':'rgba(34,197,94,.7)'};
+const SS={'New':'rgba(139,148,158,.7)','Under Review':'rgba(59,130,246,.7)','Verified':'rgba(34,197,94,.7)','Closed':'rgba(72,79,88,.7)'};
+document.addEventListener('DOMContentLoaded',()=>{
+  if(sl.length) buildDoughnut(document.getElementById('sevChart'),sl,sc,sl.map(l=>SC[l]||'rgba(249,115,22,.7)'));
+  if(stl.length) buildBar(document.getElementById('stChart'),stl,stc,stl.map(l=>SS[l]||'rgba(249,115,22,.6)'));
+  if(tl.length) buildLine(document.getElementById('trendChart'),tl,tc,'rgb(34,197,94)');
+});
+</script>
+{% endblock %}

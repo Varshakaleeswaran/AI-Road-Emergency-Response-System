@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}<i class="bi bi-eye me-2" style="color:var(--rql-text-muted);"></i>Overview{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2 class="page-title">Incident Overview</h2>
+    <span class="page-subtitle">Read-only view</span>
+  </div>
+</div>
+<div class="row g-3 mb-4">
+  {% for label,val,cls,icon in [
+    ('Total Incidents', stats.total, 'accent', 'exclamation-triangle'),
+    ('New', stats.new, 'blue', 'hourglass-split'),
+    ('Verified', stats.verified, 'green', 'check-circle'),
+    ('Critical', stats.critical, 'red', 'fire'),
+  ] %}
+  <div class="col-6 col-md-3">
+    <div class="stat-card {{ cls }}">
+      <div class="stat-icon {{ cls }}"><i class="bi bi-{{ icon }}"></i></div>
+      <div class="stat-value" data-count="{{ val }}">{{ val }}</div>
+      <div class="stat-label">{{ label }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+<div class="card">
+  <div class="card-header"><i class="bi bi-exclamation-triangle" style="color:var(--rql-accent);"></i><span class="card-title">Active Incidents</span></div>
+  <div class="rql-table-container">
+    {% if recent_incidents %}
+    <table class="rql-table">
+      <thead><tr><th>#</th><th>Vehicle</th><th>Type</th><th>Severity</th><th>Status</th><th>Date</th></tr></thead>
+      <tbody>
+      {% for inc in recent_incidents %}
+      <tr>
+        <td class="mono">#{{ inc.id }}</td>
+        <td>ID {{ inc.vehicle_id }}</td>
+        <td>{{ inc.vehicle_type or '—' }}</td>
+        <td><span class="badge-status badge-{{ inc.severity|lower }}">{{ inc.severity }}</span></td>
+        <td><span class="badge-status badge-{{ inc.status|replace(' ','-')|lower }}">{{ inc.status }}</span></td>
+        <td style="color:var(--rql-text-muted);font-size:11px;">{{ inc.created_at[:10] }}</td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><i class="bi bi-inbox"></i><p>No incidents.</p></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

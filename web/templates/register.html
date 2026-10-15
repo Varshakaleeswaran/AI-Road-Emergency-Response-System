@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Create Account — ResQLink AI</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}" />
+</head>
+<body>
+<div class="auth-page">
+  <div class="auth-card" style="max-width:480px;">
+    <!-- Logo -->
+    <div class="auth-logo">
+      <div class="brand-icon"><i class="bi bi-activity"></i></div>
+      <div class="brand-text">
+        <span class="brand-name">ResQLink AI</span>
+        <span class="brand-sub">Emergency Response Portal</span>
+      </div>
+    </div>
+
+    <h1 class="auth-title">Create an account</h1>
+    <p class="auth-sub">Create a citizen account to submit and follow up on reports.</p>
+
+    {% if error %}
+    <div class="alert alert-danger d-flex align-items-center gap-2 mb-3" style="font-size:13px;">
+      <i class="bi bi-x-circle-fill"></i> {{ error }}
+    </div>
+    {% endif %}
+
+    <form method="post" autocomplete="off">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+      <div class="row g-3 mb-3">
+        <div class="col-12">
+          <label class="form-label" for="username">Username</label>
+          <input type="text" class="form-control" id="username" name="username"
+            placeholder="At least 3 characters" required minlength="3" />
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="password">Password</label>
+          <div class="input-group">
+            <input type="password" class="form-control" id="password" name="password"
+              placeholder="At least 12 characters" required minlength="12" />
+            <button type="button" class="input-group-text"
+              style="background:var(--rql-surface2);border-color:var(--rql-border2);color:var(--rql-text-muted);cursor:pointer;"
+              onclick="togglePwd('password', this)">
+              <i class="bi bi-eye"></i>
+            </button>
+          </div>
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="confirm_password">Confirm password</label>
+          <input type="password" class="form-control" id="confirm_password" name="confirm_password"
+            placeholder="Re-enter password" required minlength="12" />
+        </div>
+      </div>
+
+      <div class="row g-3 mb-4">
+        <div class="col-12">
+          <div class="form-text">Public registration creates a citizen account. Emergency-service accounts are provisioned by an administrator after verification.</div>
+        </div>
+        <div class="col-12">
+          <label class="form-label" for="agency_name">Agency / Organisation</label>
+          <input type="text" class="form-control" id="agency_name" name="agency_name"
+            placeholder="e.g. Chennai Fire Station 3, Apollo Hospital" />
+          <div class="form-text">Optional for public users.</div>
+        </div>
+      </div>
+
+      <button type="submit" class="btn btn-primary w-100 py-2 mb-3">
+        <i class="bi bi-person-check"></i>
+        Create Account
+      </button>
+
+      <div class="text-center" style="font-size:12px;color:var(--rql-text-muted);">
+        Already have an account?
+        <a href="{{ url_for('login') }}" style="color:var(--rql-accent);">Sign in</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+function togglePwd(id, btn) {
+  const inp = document.getElementById(id);
+  const icon = btn.querySelector('i');
+  if (inp.type === 'password') { inp.type = 'text'; icon.className = 'bi bi-eye-slash'; }
+  else { inp.type = 'password'; icon.className = 'bi bi-eye'; }
+}
+
+</script>
+</body>
+</html>

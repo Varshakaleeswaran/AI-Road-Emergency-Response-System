@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% block title %}Responder Dashboard{% endblock %}
+{% block page_title %}<i class="bi bi-person-badge me-2" style="color:var(--rql-green);"></i>Responder Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2 class="page-title">{{ user.role_name }} Console</h2>
+    <span class="page-subtitle">Your assignments · Status updates</span>
+  </div>
+</div>
+
+{% if my_ambulance %}
+<div class="card mb-4" style="border-color:var(--rql-green);">
+  <div class="card-header" style="background:rgba(34,197,94,.08);">
+    <i class="bi bi-truck" style="color:var(--rql-green);"></i>
+    <span class="card-title" style="color:var(--rql-green);">My Unit: {{ my_ambulance.unit_id }}</span>
+    <span class="ms-auto badge-status {% if my_ambulance.operational_status=='AVAILABLE' %}badge-verified{% elif my_ambulance.operational_status=='EN_ROUTE' %}badge-medium{% else %}badge-high{% endif %}">{{ my_ambulance.operational_status }}</span>
+  </div>
+  <div class="card-body">
+    <div class="meta-grid mb-3">
+      <div class="meta-item"><span class="meta-key">Registration</span><span class="meta-val mono">{{ my_ambulance.registration_number }}</span></div>
+      <div class="meta-item"><span class="meta-key">Organisation</span><span class="meta-val">{{ my_ambulance.organization }}</span></div>
+      <div class="meta-item"><span class="meta-key">Capability</span><span class="meta-val">{{ my_ambulance.capability }}</span></div>
+      <div class="meta-item"><span class="meta-key">Driver</span><span class="meta-val">{{ my_ambulance.driver_name or '—' }}</span></div>
+      <div class="meta-item"><span class="meta-key">Paramedic</span><span class="meta-val">{{ my_ambulance.paramedic_name or '—' }}</span></div>
+      <div class="meta-item"><span class="meta-key">Base</span><span class="meta-val">{{ my_ambulance.base_location or '—' }}</span></div>
+    </div>
+    <form method="post" action="{{ url_for('update_ambulance_status', aid=my_ambulance.id) }}" class="d-flex gap-2">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+      <select class="form-select" name="status" style="max-width:220px;">
+        {% for s in ['AVAILABLE','DISPATCHED','EN_ROUTE','ON_SCENE','TRANSPORTING','AT_HOSPITAL','OUT_OF_SERVICE'] %}
+        <option {% if s==my_ambulance.operational_status %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-primary"><i class="bi bi-save"></i> Update Status</button>
+    </form>
+  </div>
+</div>
+{% elif my_dept %}
+<div class="card mb-4" style="border-color:var(--rql-blue);">
+  <div class="card-header">
+    <i class="bi bi-shield-check" style="color:var(--rql-blue);"></i>
+    <span class="card-title">My Department: {{ my_dept.name }}</span>
+    <span class="ms-auto badge-status badge-verified">{{ my_dept.operational_status }}</span>
+  </div>
+  <div class="card-body">
+    <div class="meta-grid">
+      <div class="meta-item"><span class="meta-key">Type</span><span class="meta-val">{{ my_dept.dept_type|upper }}</span></div>
+      <div class="meta-item"><span class="meta-key">Code</span><span class="meta-val mono">{{ my_dept.dept_code }}</span></div>
+      <div class="meta-item"><span class="meta-key">Jurisdiction</span><span class="meta-val">{{ my_dept.jurisdiction }}</span></div>
+      <div class="meta-item"><span class="meta-key">Units Available</span><span class="meta-val">{{ my_dept.available_units }} / {{ my_dept.unit_count }}</span></div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header"><i class="bi bi-exclamation-triangle" style="color:var(--rql-accent);"></i><span class="card-title">Active Assigned Incidents</span></div>
+  <div class="rql-table-container">
+    {% if assigned %}
+    <table class="rql-table">
+      <thead><tr><th>#</th><th>Vehicle</th><th>Severity</th><th>Status</th><th>Lifecycle</th><th>Location</th><th></th></tr></thead>
+      <tbody>
+      {% for inc in assigned %}
+      <tr>
+        <td class="mono">#{{ inc.id }}</td>
+        <td>{{ inc.vehicle_type or '—' }} ID {{ inc.vehicle_id }}</td>
+        <td><span class="badge-status badge-{{ inc.severity|lower }}">{{ inc.severity }}</span></td>
+        <td><span class="badge-status badge-{{ inc.status|replace(' ','-')|lower }}">{{ inc.status }}</span></td>
+        <td>
+          <span class="badge-status" style="background:rgba(59,130,246,.1);color:var(--rql-blue);border:1px solid rgba(59,130,246,.2);font-size:10px;">
+            {{ inc.lifecycle_status or 'REPORTED' }}
+          </span>
+        </td>
+        <td style="font-size:11px;color:var(--rql-text-muted);">{{ (inc.location_text or '—')[:30] }}</td>
+        <td>
+          <a href="{{ url_for('incident_detail', iid=inc.id) }}" class="btn btn-outline-secondary btn-sm btn-icon"><i class="bi bi-arrow-right"></i></a>
+          <a href="{{ url_for('incident_map', iid=inc.id) }}" class="btn btn-outline-secondary btn-sm btn-icon"><i class="bi bi-map"></i></a>
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state"><i class="bi bi-check-circle" style="color:var(--rql-green);"></i><p>No incidents currently assigned to you.</p></div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

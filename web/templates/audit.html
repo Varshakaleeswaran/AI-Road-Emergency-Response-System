@@ -1,0 +1,61 @@
+{% extends "base.html" %}
+{% block title %}Audit Log{% endblock %}
+{% block page_title %}<i class="bi bi-journal-text me-2" style="color:var(--rql-yellow);"></i>Audit Log{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2 class="page-title">Audit Log</h2>
+    <span class="page-subtitle">All system actions recorded chronologically</span>
+  </div>
+  <span style="font-size:12px;color:var(--rql-text-muted);">Showing last 500 entries</span>
+</div>
+
+<div class="card">
+  <div class="rql-table-container">
+    {% if logs %}
+    <table class="rql-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Timestamp</th>
+          <th>User</th>
+          <th>Action</th>
+          <th>Details</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs %}
+        <tr>
+          <td class="mono" style="color:var(--rql-text-dim);">{{ log.id }}</td>
+          <td style="font-size:11px;color:var(--rql-text-muted);white-space:nowrap;">{{ log.created_at }}</td>
+          <td>
+            <span class="badge-status badge-under-review" style="font-family:'JetBrains Mono',monospace;font-size:11px;">
+              {{ log.username or '—' }}
+            </span>
+          </td>
+          <td>
+            <span class="mono" style="font-size:12px;
+              color:{% if 'FAIL' in log.action %}var(--rql-red)
+              {% elif 'LOGIN' in log.action %}var(--rql-green)
+              {% elif 'CREATE' in log.action %}var(--rql-accent)
+              {% elif 'UPDATE' in log.action %}var(--rql-blue)
+              {% elif 'ASSIGN' in log.action %}var(--rql-purple)
+              {% else %}var(--rql-text){% endif %};">
+              {{ log.action }}
+            </span>
+          </td>
+          <td style="font-size:12px;color:var(--rql-text-muted);">{{ log.details or '—' }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <i class="bi bi-journal-text"></i>
+      <p>No audit entries yet.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

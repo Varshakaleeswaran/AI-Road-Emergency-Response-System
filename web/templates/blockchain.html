@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% block title %}Blockchain Audit{% endblock %}
+{% block page_title %}<i class="bi bi-link-45deg me-2" style="color:var(--rql-purple);"></i>Blockchain Audit{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2 class="page-title">Tamper-Evident Audit Chain</h2>
+    <span class="page-subtitle">SHA-256 hash chain · {{ chain|length }} blocks · Critical events only</span>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    {% set valid_count = chain|selectattr('valid','eq',true)|list|length %}
+    {% if valid_count == chain|length %}
+    <span class="badge-status badge-verified"><i class="bi bi-shield-check me-1"></i>Chain Intact</span>
+    {% else %}
+    <span class="badge-status badge-high"><i class="bi bi-shield-exclamation me-1"></i>{{ chain|length - valid_count }} Tampered</span>
+    {% endif %}
+  </div>
+</div>
+
+<div class="card mb-4" style="background:rgba(168,85,247,.04);border-color:rgba(168,85,247,.2);">
+  <div class="card-body">
+    <p style="font-size:12px;color:var(--rql-text-muted);margin:0;">
+      <i class="bi bi-info-circle me-1"></i>
+      Each block records a critical operational event. The SHA-256 hash of each block includes the previous block's hash,
+      creating a chain where any tampering is detectable. Events recorded: <code>INCIDENT_VERIFIED</code>,
+      <code>INCIDENT_DISPATCHED</code>, <code>HOSPITAL_NOTIFIED</code>, <code>REPLAN_APPROVED</code>,
+      <code>INCIDENT_CLOSED</code>, <code>INCIDENT_SEVERITY_ESCALATED</code>.
+    </p>
+  </div>
+</div>
+
+{% if chain %}
+<div class="card">
+  <div class="rql-table-container">
+    <table class="rql-table">
+      <thead>
+        <tr><th>Block #</th><th>Event Type</th><th>Event Data</th><th>Hash (SHA-256)</th><th>Prev Hash</th><th>Timestamp</th><th>Validity</th></tr>
+      </thead>
+      <tbody>
+      {% for block in chain %}
+      <tr>
+        <td><span class="mono" style="font-size:12px;color:var(--rql-purple);">#{{ block.block_height }}</span></td>
+        <td><span class="mono" style="font-size:11px;color:var(--rql-accent);">{{ block.event_type }}</span></td>
+        <td style="font-size:11px;color:var(--rql-text-muted);max-width:160px;word-break:break-all;">{{ block.event_data }}</td>
+        <td>
+          <span class="mono" style="font-size:10px;color:var(--rql-text-muted);" title="{{ block.sha256_hash }}">
+            {{ block.sha256_hash[:16] }}…{{ block.sha256_hash[-8:] }}
+          </span>
+        </td>
+        <td>
+          <span class="mono" style="font-size:10px;color:var(--rql-text-dim);" title="{{ block.prev_hash }}">
+            {% if block.prev_hash == '0'*64 %}Genesis{% else %}{{ block.prev_hash[:12] }}…{% endif %}
+          </span>
+        </td>
+        <td style="font-size:11px;color:var(--rql-text-muted);white-space:nowrap;">{{ block.created_at[:16] }}</td>
+        <td>
+          {% if block.valid %}
+          <span style="color:var(--rql-green);font-size:16px;" title="Valid">✅</span>
+          {% else %}
+          <span style="color:var(--rql-red);font-size:16px;" title="Tampered or invalid">❌</span>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card">
+  <div class="empty-state">
+    <i class="bi bi-link-45deg"></i>
+    <p>No blocks yet. Blocks are recorded when incidents are verified, dispatched, or closed.</p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

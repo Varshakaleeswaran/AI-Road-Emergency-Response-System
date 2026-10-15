@@ -1,0 +1,420 @@
+{% extends "base.html" %}
+{% block title %}Incident #{{ incident.id }}{% endblock %}
+{% block page_title %}<i class="bi bi-exclamation-triangle me-2" style="color:var(--rql-accent);"></i>Incident #{{ incident.id }}{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2 class="page-title">Incident #{{ incident.id }}</h2>
+    <span class="page-subtitle">
+      Vehicle {{ incident.vehicle_id }} · Frame {{ incident.frame }}
+      {% if incident.vehicle_type %} · {{ incident.vehicle_type }}{% endif %}
+    </span>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    {% set sc = incident.status|replace(' ','-')|lower %}
+    <span class="badge-status badge-{{ sc }}" style="font-size:13px;">{{ incident.status }}</span>
+    <span class="badge-status badge-{{ incident.severity|lower }}" style="font-size:13px;">{{ incident.severity }}</span>
+    <a href="{{ url_for('incidents') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left"></i> Back
+    </a>
+    <a href="{{ url_for('incident_map', iid=incident.id) }}" class="btn btn-primary btn-sm">
+      <i class="bi bi-map"></i> Live Map
+    </a>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- ── Left column ─────────────────────────────────────────── -->
+  <div class="col-lg-7">
+
+    <!-- AI Evidence -->
+    <div class="detail-section">
+      <div class="detail-section-header">
+        <i class="bi bi-cpu" style="color:var(--rql-accent);"></i>
+        AI Evidence
+      </div>
+      <div class="detail-section-body">
+        <div class="meta-grid">
+          <div class="meta-item">
+            <span class="meta-key">Vehicle ID</span>
+            <span class="meta-val mono">{{ incident.vehicle_id }}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-key">Frame</span>
+            <span class="meta-val mono">{{ incident.frame }}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-key">Vehicle Type</span>
+            <span class="meta-val">{{ incident.vehicle_type or '—' }}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-key">Movement (px/s)</span>
+            <span class="meta-val mono">{{ '%.2f'|format(incident.movement_per_sec or 0) }}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-key">Direction Change (°)</span>
+            <span class="meta-val mono">{{ '%.2f'|format(incident.direction_change_angle or 0) }}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-key">Deceleration</span>
+            <span class="meta-val mono">{{ '%.2f'|format(incident.deceleration or 0) }}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-key">Location</span>
+            <span class="meta-val">{{ incident.location_text or '—' }}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-key">Created</span>
+            <span class="meta-val mono" style="font-size:12px;">{{ incident.created_at }}</span>
+          </div>
+          <div class="meta-item">
+            <span class="meta-key">Updated</span>
+            <span class="meta-val mono" style="font-size:12px;">{{ incident.updated_at }}</span>
+          </div>
+        </div>
+
+        <div class="mt-3 p-3 rounded" style="background:rgba(249,115,22,.04);border:1px solid rgba(249,115,22,.15);font-size:12px;color:var(--rql-text-muted);">
+          <i class="bi bi-info-circle me-1"></i>
+          These AI-derived features are candidate anomalies and <strong>do not confirm</strong> that a collision occurred. Human verification is required.
+        </div>
+      </div>
+    </div>
+
+    <!-- Operator notes (read-only if no permission) -->
+    {% if incident.notes %}
+    <div class="detail-section">
+      <div class="detail-section-header">
+        <i class="bi bi-chat-left-text" style="color:var(--rql-blue);"></i>
+        Operator Notes
+      </div>
+      <div class="detail-section-body">
+        <p style="font-size:13px;line-height:1.7;margin:0;white-space:pre-wrap;">{{ incident.notes }}</p>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Related citizen reports -->
+    {% if related %}
+    <div class="detail-section">
+      <div class="detail-section-header">
+        <i class="bi bi-flag" style="color:var(--rql-purple);"></i>
+        Linked Citizen Reports ({{ related|length }})
+      </div>
+      <div class="rql-table-container">
+        <table class="rql-table">
+          <thead>
+            <tr><th>#</th><th>Reporter</th><th>Location</th><th>Status</th><th>Date</th></tr>
+          </thead>
+          <tbody>
+            {% for rpt in related %}
+            <tr>
+              <td class="mono">#{{ rpt.id }}</td>
+              <td>{{ rpt.reporter_username }}</td>
+              <td>{{ rpt.location_text[:40] }}{% if rpt.location_text|length > 40 %}…{% endif %}</td>
+              <td><span class="badge-status badge-new">{{ rpt.status }}</span></td>
+              <td style="font-size:11px;color:var(--rql-text-muted);">{{ rpt.created_at[:10] }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+
+  <!-- ── Right column ────────────────────────────────────────── -->
+  <div class="col-lg-5">
+
+    <!-- Incident Lifecycle State Machine -->
+    <div class="detail-section mb-3">
+      <div class="detail-section-header">
+        <i class="bi bi-diagram-3" style="color:var(--rql-accent);"></i>
+        Incident Lifecycle Stage
+      </div>
+      <div class="detail-section-body">
+        <div class="d-flex align-items-center justify-content-between mb-3">
+          <span style="font-size:12px;color:var(--rql-text-muted);">Current Stage:</span>
+          <span class="badge-status badge-{{ lifecycle_colors.get(incident.lifecycle_status, 'primary') }}" style="font-size:12px;font-weight:700;">
+            {{ incident.lifecycle_status or 'REPORTED' }}
+          </span>
+        </div>
+
+        {% if can_advance_lifecycle and next_lifecycle_state %}
+        <form method="post" action="{{ url_for('advance_lifecycle', iid=incident.id) }}" class="mb-3">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+          <label class="form-label" style="font-size:12px;">Transition To Next Stage</label>
+          <div class="input-group mb-2">
+            <select class="form-select form-select-sm" name="to_state" required>
+              <option value="{{ next_lifecycle_state }}" selected>{{ next_lifecycle_state }}</option>
+              {% if has_permission(user.role, 'review_incidents') %}
+              <option value="FALSE_ALARM">FALSE_ALARM</option>
+              {% endif %}
+            </select>
+            <button type="submit" class="btn btn-primary btn-sm">Update Stage</button>
+          </div>
+          <input type="text" class="form-control form-control-sm" name="notes" placeholder="Optional notes for stage change..." />
+        </form>
+        {% endif %}
+
+        {% if lifecycle_events %}
+        <div style="font-size:11px;font-weight:700;color:var(--rql-text-muted);text-transform:uppercase;margin-bottom:8px;">History</div>
+        <div class="timeline p-0" style="max-height:160px;overflow-y:auto;">
+          {% for ev in lifecycle_events %}
+          <div class="timeline-item pb-2">
+            <div class="timeline-dot"></div>
+            <div class="timeline-body">
+              <div class="timeline-action" style="font-size:12px;">{{ ev.from_status or 'START' }} &rarr; <strong>{{ ev.to_status }}</strong></div>
+              <div class="timeline-meta" style="font-size:10px;">{{ ev.username }} &middot; {{ ev.created_at[:16] }}{% if ev.notes %} &middot; <em>{{ ev.notes }}</em>{% endif %}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- AI Recommendation & Resource Dispatch -->
+    {% if has_permission(user.role, 'manage_resources') %}
+    <div class="detail-section mb-3">
+      <div class="detail-section-header">
+        <i class="bi bi-robot" style="color:var(--rql-cyan);"></i>
+        AI Emergency Resource Recommendation
+      </div>
+      <div class="detail-section-body">
+        <p style="font-size:12px;color:var(--rql-text-muted);margin-bottom:12px;">
+          Advisory ranking from registered resource locations, capability, and availability.
+          It does not use live fleet or traffic data and does not dispatch a unit.
+        </p>
+        <div id="ai-rec-container">
+          <button type="button" class="btn btn-outline-primary btn-sm w-100 mb-2" onclick="loadAIRecommendations()">
+            <i class="bi bi-calculator"></i> Calculate Optimal Responders
+          </button>
+          <div id="ai-rec-results" style="display:none;"></div>
+        </div>
+
+        <a href="{{ url_for('dispatch_console') }}" class="btn btn-outline-primary btn-sm w-100 mt-2">
+          <i class="bi bi-person-check"></i> Review units and dispatch manually
+        </a>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Hospital Pre-Alert Notification -->
+    {% if has_permission(user.role, 'manage_resources') %}
+    <div class="detail-section mb-3">
+      <div class="detail-section-header">
+        <i class="bi bi-hospital" style="color:var(--rql-red);"></i>
+        Hospital Emergency Pre-Alert
+      </div>
+      <div class="detail-section-body">
+        <form method="post" action="{{ url_for('alert_hospital', iid=incident.id) }}">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+          <div class="mb-2">
+            <label class="form-label" style="font-size:12px;">Receiving Hospital</label>
+            <select class="form-select form-select-sm" name="hospital_id" required>
+              {% for h in hospitals %}
+              <option value="{{ h.id }}">{{ h.resource_name }} ({{ h.location_text or 'General' }})</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="row g-2 mb-2">
+            <div class="col-6">
+              <label class="form-label" style="font-size:12px;">Estimated ETA (min)</label>
+              <input type="number" class="form-control form-control-sm" name="eta_minutes" value="15" min="1" max="180" required />
+            </div>
+            <div class="col-6">
+              <label class="form-label" style="font-size:12px;">Patient Count</label>
+              <input type="number" class="form-control form-control-sm" name="patient_count" value="1" min="1" max="20" required />
+            </div>
+          </div>
+          <button type="submit" class="btn btn-danger btn-sm w-100">
+            <i class="bi bi-broadcast"></i> Transmit Hospital Alert
+          </button>
+        </form>
+
+        {% if alerts %}
+        <div class="mt-3">
+          <div style="font-size:11px;font-weight:700;color:var(--rql-text-muted);text-transform:uppercase;margin-bottom:6px;">Alerts Log</div>
+          <ul class="list-unstyled mb-0" style="font-size:11px;">
+            {% for a in alerts %}
+            <li class="p-1 mb-1 rounded" style="background:var(--rql-surface2);border:1px solid var(--rql-border);">
+              <strong>Status: {{ a.alert_status }}</strong> &middot; ETA: {{ a.eta_minutes }}m &middot; Patients: {{ a.patient_count }}
+            </li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Re-plan Trigger Console -->
+    {% if has_permission(user.role, 'review_incidents') %}
+    <div class="detail-section mb-3">
+      <div class="detail-section-header">
+        <i class="bi bi-arrow-repeat" style="color:var(--rql-yellow);"></i>
+        Dynamic Re-planning Console
+      </div>
+      <div class="detail-section-body">
+        <form method="post" action="{{ url_for('trigger_replan', iid=incident.id) }}" class="mb-2">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+          <div class="input-group">
+            <input type="text" class="form-control form-control-sm" name="reason" placeholder="e.g. Unit stuck in traffic / condition escalated" required />
+            <button type="submit" class="btn btn-warning btn-sm">Trigger Re-plan</button>
+          </div>
+        </form>
+
+        {% if replans %}
+        <div class="timeline p-0 mt-2" style="max-height:140px;overflow-y:auto;">
+          {% for rp in replans %}
+          <div class="timeline-item pb-1">
+            <div class="timeline-dot"></div>
+            <div class="timeline-body">
+              <div class="timeline-action" style="font-size:11px;"><strong>{{ rp.status }}</strong>: {{ rp.trigger_reason }}</div>
+              <div class="timeline-meta" style="font-size:10px;">{{ rp.created_at[:16] }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Review form -->
+    {% if has_permission(user.role, 'review_incidents') %}
+    <div class="detail-section mb-3">
+      <div class="detail-section-header">
+        <i class="bi bi-pencil-square" style="color:var(--rql-yellow);"></i>
+        Review &amp; Update
+      </div>
+      <div class="detail-section-body">
+        <form method="post">
+          <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+          <input type="hidden" name="action" value="update" />
+          <div class="mb-3">
+            <label class="form-label">Status</label>
+            <select class="form-select" name="status">
+              {% for s in statuses %}
+              <option value="{{ s }}" {% if s == incident.status %}selected{% endif %}>{{ s }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Severity</label>
+            <select class="form-select" name="severity">
+              {% for sv in severities %}
+              <option value="{{ sv }}" {% if sv == incident.severity %}selected{% endif %}>{{ sv }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Location / Address</label>
+            <input type="text" class="form-control" name="location_text"
+              value="{{ incident.location_text or '' }}" placeholder="e.g. NH-44, near Chennai Toll" />
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Operator Notes</label>
+            <textarea class="form-control" name="notes" rows="4"
+              placeholder="Record observations, evidence, and the reason for your decision…">{{ incident.notes or '' }}</textarea>
+          </div>
+          <button type="submit" class="btn btn-primary w-100">
+            <i class="bi bi-check2"></i> Save Review
+          </button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Resource assignment -->
+    {% if has_permission(user.role, 'manage_resources') %}
+    <div class="detail-section">
+      <div class="detail-section-header">
+        <i class="bi bi-truck" style="color:var(--rql-green);"></i>
+        Manual Resource Assignment
+      </div>
+      <div class="detail-section-body">
+        <p style="font-size:11px;color:var(--rql-text-muted);margin-bottom:16px;">
+          Prototype assignments are recorded in this portal only; no live agency fleet is connected.
+        </p>
+
+        <!-- Current assignment chips -->
+        <div class="resource-chips mb-3">
+          <div class="resource-chip {% if incident.ambulance_assigned %}ambulance{% else %}unassigned{% endif %}">
+            🚑 Ambulance: {{ 'Assigned' if incident.ambulance_assigned else 'Not assigned' }}
+          </div>
+          <div class="resource-chip {% if incident.police_assigned %}police{% else %}unassigned{% endif %}">
+            🚔 Police: {{ 'Assigned' if incident.police_assigned else 'Not assigned' }}
+          </div>
+          <div class="resource-chip {% if incident.fire_assigned %}fire{% else %}unassigned{% endif %}">
+            🚒 Fire: {{ 'Assigned' if incident.fire_assigned else 'Not assigned' }}
+          </div>
+        </div>
+
+        <p class="small text-muted mb-2">
+          Dispatch is enabled only after an operator verifies the incident. Select a specific active account linked to its agency registry.
+        </p>
+        {% if incident.lifecycle_status in ['VERIFIED', 'DISPATCHED'] %}
+        <a href="{{ url_for('dispatch_console') }}" class="btn btn-success w-100">
+          <i class="bi bi-send-check"></i> Select and notify a unit
+        </a>
+        {% else %}
+        <button type="button" class="btn btn-outline-secondary w-100" disabled>
+          <i class="bi bi-lock"></i> Verify incident before dispatch
+        </button>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+function loadAIRecommendations() {
+  const container = document.getElementById('ai-rec-results');
+  container.style.display = 'block';
+  container.innerHTML = '<div class="text-center py-2" style="font-size:12px;color:var(--rql-text-muted);"><span class="spinner-border spinner-border-sm me-1"></span> Evaluating dispatch algorithm...</div>';
+  fetch("{{ url_for('recommend_resources', iid=incident.id) }}")
+    .then(r => r.json())
+    .then(data => {
+      let html = '<div class="mt-2" style="font-size:12px;">';
+      if (data.ambulances && data.ambulances.length) {
+        html += '<strong style="color:var(--rql-accent);">Top Ambulance Options:</strong><ul class="list-unstyled mt-1 mb-2">';
+        data.ambulances.forEach(a => {
+          html += `<li class="p-2 mb-1 rounded" style="background:var(--rql-surface2);border:1px solid var(--rql-border);">
+            <div class="d-flex justify-content-between">
+              <strong>${a.name}</strong>
+              <span class="badge bg-primary">${a.score} pts</span>
+            </div>
+            <div style="font-size:11px;color:var(--rql-text-muted);">${a.capability} &middot; ${a.distance_km} km away &middot; ${a.status}</div>
+          </li>`;
+        });
+        html += '</ul>';
+      }
+      if (data.hospitals && data.hospitals.length) {
+        html += '<strong style="color:var(--rql-red);">Recommended Hospitals:</strong><ul class="list-unstyled mt-1 mb-2">';
+        data.hospitals.forEach(h => {
+          html += `<li class="p-2 mb-1 rounded" style="background:var(--rql-surface2);border:1px solid var(--rql-border);">
+            <div class="d-flex justify-content-between">
+              <strong>${h.name}</strong>
+              <span class="badge bg-danger">${h.score} pts</span>
+            </div>
+            <div style="font-size:11px;color:var(--rql-text-muted);">${h.capability} &middot; ${h.distance_km} km away</div>
+          </li>`;
+        });
+        html += '</ul>';
+      }
+      html += '</div>';
+      container.innerHTML = html;
+    })
+    .catch(err => {
+      container.innerHTML = '<div class="alert alert-danger py-1" style="font-size:12px;">Failed to load recommendations</div>';
+    });
+}
+</script>
+{% endblock %}

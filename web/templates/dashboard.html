@@ -1,0 +1,275 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}
+  <i class="bi bi-speedometer2 me-2" style="color:var(--rql-accent);"></i>Dashboard
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2 class="page-title">Incident Overview</h2>
+    <span class="page-subtitle">Operator-reviewed incidents and registered-resource status</span>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <span class="topbar-badge">
+      <span class="status-dot status-dot--live"></span>
+      Portal active
+    </span>
+    <span id="live-clock" style="font-size:12px;color:var(--rql-text-muted);font-family:'JetBrains Mono',monospace;"></span>
+  </div>
+</div>
+
+<!-- ── Stat cards ──────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="stat-card accent">
+      <div class="stat-icon accent"><i class="bi bi-exclamation-triangle"></i></div>
+      <div class="stat-value" data-count="{{ stats.total }}">{{ stats.total }}</div>
+      <div class="stat-label">Total Incidents</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="stat-card blue">
+      <div class="stat-icon blue"><i class="bi bi-hourglass-split"></i></div>
+      <div class="stat-value" data-count="{{ stats.new }}">{{ stats.new }}</div>
+      <div class="stat-label">New</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="stat-card yellow">
+      <div class="stat-icon yellow"><i class="bi bi-search"></i></div>
+      <div class="stat-value" data-count="{{ stats.under_review }}">{{ stats.under_review }}</div>
+      <div class="stat-label">Under Review</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="stat-card green">
+      <div class="stat-icon green"><i class="bi bi-check-circle"></i></div>
+      <div class="stat-value" data-count="{{ stats.verified }}">{{ stats.verified }}</div>
+      <div class="stat-label">Verified</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="stat-card red">
+      <div class="stat-icon red"><i class="bi bi-fire"></i></div>
+      <div class="stat-value" data-count="{{ stats.critical }}">{{ stats.critical }}</div>
+      <div class="stat-label">Critical</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="stat-card purple">
+      <div class="stat-icon purple"><i class="bi bi-flag"></i></div>
+      <div class="stat-value" data-count="{{ stats.reports }}">{{ stats.reports }}</div>
+      <div class="stat-label">Citizen Reports</div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Charts row ─────────────────────────────────────────────── -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header">
+        <i class="bi bi-pie-chart" style="color:var(--rql-accent);"></i>
+        <span class="card-title">Incidents by Severity</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-container">
+          <canvas id="sevChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header">
+        <i class="bi bi-bar-chart" style="color:var(--rql-blue);"></i>
+        <span class="card-title">Incidents by Status</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-container">
+          <canvas id="stChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100">
+      <div class="card-header">
+        <i class="bi bi-graph-up" style="color:var(--rql-green);"></i>
+        <span class="card-title">7-Day Incident Trend</span>
+      </div>
+      <div class="card-body">
+        <div class="chart-container">
+          <canvas id="trendChart"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── Recent incidents + reports ────────────────────────────── -->
+<div class="row g-3">
+  <div class="col-lg-8">
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-exclamation-triangle" style="color:var(--rql-accent);"></i>
+        <span class="card-title">Recent Incidents</span>
+        <a href="{{ url_for('incidents') }}" class="ms-auto btn btn-outline-secondary btn-sm">
+          View all <i class="bi bi-arrow-right"></i>
+        </a>
+      </div>
+      <div class="rql-table-container">
+        {% if recent_incidents %}
+        <table class="rql-table">
+          <thead>
+            <tr>
+              <th>#ID</th>
+              <th>Vehicle</th>
+              <th>Type</th>
+              <th>Severity</th>
+              <th>Status</th>
+              <th>Created</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for inc in recent_incidents %}
+            <tr style="cursor:pointer;" onclick="window.location='{{ url_for('incident_detail', iid=inc.id) }}'">
+              <td><span class="mono" style="color:var(--rql-text-muted);">#{{ inc.id }}</span></td>
+              <td>ID {{ inc.vehicle_id }} · Frame {{ inc.frame }}</td>
+              <td>{{ inc.vehicle_type or '—' }}</td>
+              <td>
+                <span class="badge-status badge-{{ inc.severity|lower }}">{{ inc.severity }}</span>
+              </td>
+              <td>
+                {% set sc = inc.status|replace(' ','-')|lower %}
+                <span class="badge-status badge-{{ sc }}">{{ inc.status }}</span>
+              </td>
+              <td style="color:var(--rql-text-muted);font-size:11px;">{{ inc.created_at[:10] }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+        <div class="empty-state">
+          <i class="bi bi-inbox"></i>
+          <p>No incidents yet.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-lg-4">
+    <!-- Resource availability -->
+    <div class="card mb-3">
+      <div class="card-header">
+        <i class="bi bi-truck" style="color:var(--rql-blue);"></i>
+        <span class="card-title">Resources</span>
+        <a href="{{ url_for('resources') }}" class="ms-auto btn btn-outline-secondary btn-sm">
+          Manage <i class="bi bi-arrow-right"></i>
+        </a>
+      </div>
+      <div class="card-body">
+        <div class="d-flex flex-column gap-3">
+          <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-8">
+              <span style="font-size:18px;">🚑</span>
+              <span style="font-size:13px;margin-left:8px;">Ambulances available</span>
+            </div>
+            <span class="stat-value" style="font-size:22px;" data-count="{{ stats.ambulances }}">{{ stats.ambulances }}</span>
+          </div>
+          <div class="d-flex align-items-center justify-content-between">
+            <div class="d-flex align-items-center gap-8">
+              <span style="font-size:18px;">🚔</span>
+              <span style="font-size:13px;margin-left:8px;">Total resources</span>
+            </div>
+            <span class="stat-value" style="font-size:22px;" data-count="{{ stats.resources }}">{{ stats.resources }}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Recent reports -->
+    <div class="card">
+      <div class="card-header">
+        <i class="bi bi-flag" style="color:var(--rql-purple);"></i>
+        <span class="card-title">Latest Reports</span>
+        <a href="{{ url_for('reports') }}" class="ms-auto btn btn-outline-secondary btn-sm">
+          View <i class="bi bi-arrow-right"></i>
+        </a>
+      </div>
+      <div class="card-body p-0">
+        {% if recent_reports %}
+        <div class="timeline px-3 py-2">
+          {% for rpt in recent_reports %}
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <div class="timeline-body">
+              <div class="timeline-action">{{ rpt.location_text[:35] }}{% if rpt.location_text|length > 35 %}…{% endif %}</div>
+              <div class="timeline-meta">
+                {{ rpt.reporter_username }} &middot; {{ rpt.created_at[:10] }}
+              </div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div class="empty-state">
+          <i class="bi bi-flag"></i>
+          <p>No citizen reports yet.</p>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const sevLabels = {{ sev_labels|safe }};
+const sevCounts = {{ sev_counts|safe }};
+const stLabels  = {{ st_labels|safe }};
+const stCounts  = {{ st_counts|safe }};
+const trendLabels = {{ trend_labels|safe }};
+const trendCounts = {{ trend_counts|safe }};
+
+const SEV_COLORS = {
+  Low:      'rgba(34,197,94,.7)',
+  Medium:   'rgba(234,179,8,.7)',
+  High:     'rgba(239,68,68,.7)',
+  Critical: 'rgba(239,68,68,1)',
+};
+const ST_COLORS = {
+  New:            'rgba(139,148,158,.7)',
+  'Under Review': 'rgba(59,130,246,.7)',
+  Verified:       'rgba(34,197,94,.7)',
+  Closed:         'rgba(72,79,88,.7)',
+};
+
+document.addEventListener('DOMContentLoaded', () => {
+  if (sevLabels.length) {
+    buildDoughnut(
+      document.getElementById('sevChart'),
+      sevLabels, sevCounts,
+      sevLabels.map(l => SEV_COLORS[l] || 'rgba(249,115,22,.7)')
+    );
+  }
+  if (stLabels.length) {
+    buildBar(
+      document.getElementById('stChart'),
+      stLabels, stCounts,
+      stLabels.map(l => ST_COLORS[l] || 'rgba(249,115,22,.6)')
+    );
+  }
+  if (trendLabels.length) {
+    buildLine(
+      document.getElementById('trendChart'),
+      trendLabels, trendCounts,
+      'rgb(34,197,94)'
+    );
+  }
+});
+</script>
+{% endblock %}

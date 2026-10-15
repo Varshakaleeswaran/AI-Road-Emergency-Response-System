@@ -1,0 +1,204 @@
+{% extends "base.html" %}
+{% block title %}Incident Map{% endblock %}
+{% block page_title %}<i class="bi bi-map me-2" style="color:var(--rql-green);"></i>Incident Map{% endblock %}
+
+{% block extra_css %}
+<!-- Leaflet CSS -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+.map-fullpage { height: calc(100vh - var(--topbar-h) - 48px); border-radius: var(--radius-lg); overflow: hidden; border: 1px solid var(--rql-border); }
+.map-sidebar-panel { height: calc(100vh - var(--topbar-h) - 48px); overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+.inc-card { background: var(--rql-surface); border: 1px solid var(--rql-border); border-radius: var(--radius); padding: 12px; cursor: pointer; transition: border-color .15s; text-decoration: none; color: inherit; display: block; }
+.inc-card:hover { border-color: var(--rql-accent); color: inherit; }
+.inc-card.active-card { border-color: var(--rql-accent); background: rgba(249,115,22,.06); }
+.inc-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; }
+.inc-id { font-size: 11px; color: var(--rql-text-muted); font-family: 'JetBrains Mono', monospace; }
+.inc-loc { font-size: 11px; color: var(--rql-text-muted); margin-top: 3px; }
+.leaflet-popup-content-wrapper { background: var(--rql-surface2); border: 1px solid var(--rql-border2); color: var(--rql-text); border-radius: 8px; box-shadow: 0 4px 16px rgba(0,0,0,.5); }
+.leaflet-popup-tip { background: var(--rql-surface2); }
+.pulse-ring { border-radius: 50%; animation: ring-pulse 1.8s ease-out infinite; }
+@keyframes ring-pulse { 0% { transform: scale(0.7); opacity: 1; } 100% { transform: scale(2.2); opacity: 0; } }
+.legend { background: var(--rql-surface); border: 1px solid var(--rql-border); border-radius: var(--radius); padding: 10px 14px; font-size: 11px; color: var(--rql-text-muted); display: flex; gap: 16px; flex-wrap: wrap; }
+.legend-item { display: flex; align-items: center; gap: 6px; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2 class="page-title">Incident Overview Map</h2>
+    <span class="page-subtitle">Incidents you may access · registered resource locations (not live GPS)</span>
+  </div>
+  <div class="d-flex align-items-center gap-2">
+    <span class="topbar-badge">Snapshot</span>
+    <button class="btn btn-outline-secondary btn-sm" onclick="window.location.reload()">
+      <i class="bi bi-arrow-clockwise"></i> Refresh
+    </button>
+  </div>
+</div>
+
+<div class="alert alert-info py-2 mb-3" role="note" style="font-size:12px;">
+  This view shows registered resource base locations, not live ambulance tracking. For an incident, the incident map labels consented device GPS,
+  stale fixes, demo simulation, and static registry positions separately. Map tiles are served by public OpenStreetMap/CARTO services.
+</div>
+
+<!-- Legend -->
+<div class="legend mb-3">
+  <div class="legend-item"><span style="width:12px;height:12px;background:#ef4444;border-radius:50%;display:inline-block;"></span>Critical / High incident</div>
+  <div class="legend-item"><span style="width:12px;height:12px;background:#eab308;border-radius:50%;display:inline-block;"></span>Medium incident</div>
+  <div class="legend-item"><span style="width:12px;height:12px;background:#22c55e;border-radius:50%;display:inline-block;"></span>Low incident</div>
+  <div class="legend-item"><span style="font-size:14px;">🚑</span>Registered ambulance base (not a live position)</div>
+  <div class="legend-item"><span style="font-size:14px;">🏥</span>Registered hospital</div>
+  <div class="legend-item"><span style="font-size:14px;">🚔</span>Registered police unit</div>
+  <div class="legend-item"><span style="font-size:14px;">🚒</span>Registered fire unit</div>
+</div>
+
+<div class="row g-3">
+  <!-- Incident list panel -->
+  <div class="col-md-3">
+    <div class="map-sidebar-panel">
+      <div style="font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--rql-text-muted);padding:2px 0;">
+        Active Incidents ({{ incidents|length }})
+      </div>
+      {% for inc in incidents %}
+      <a href="{{ url_for('incident_map', iid=inc.id) }}" class="inc-card" id="inc-card-{{ inc.id }}"
+         {% if inc.latitude is not none and inc.longitude is not none %}onclick="focusIncident({{ inc.id }}, {{ inc.latitude }}, {{ inc.longitude }}); return false;"{% endif %}>
+        <div class="inc-header">
+          <span class="inc-id">#{{ inc.id }}</span>
+          <span class="badge-status badge-{{ inc.severity|lower }}">{{ inc.severity }}</span>
+        </div>
+        <div style="font-size:12px;font-weight:600;">{{ inc.vehicle_type or 'Unknown' }} · Vehicle {{ inc.vehicle_id }}</div>
+        <div class="inc-loc">
+          <i class="bi bi-geo-alt"></i>
+          {{ (inc.address or inc.location_text or 'No location')[:40] }}
+        </div>
+        {% set sc = inc.status|replace(' ','-')|lower %}
+        <div class="mt-1">
+          <span class="badge-status badge-{{ sc }}" style="font-size:10px;">{{ inc.status }}</span>
+        </div>
+      </a>
+      {% else %}
+      <div class="empty-state">
+        <i class="bi bi-map"></i>
+        <p>No active incidents.</p>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Map -->
+  <div class="col-md-9">
+    <div id="globalMap" class="map-fullpage"></div>
+  </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+// ── Init map ──────────────────────────────────────────────────────────────────
+const map = L.map('globalMap', {
+  center: [13.0827, 80.2707],
+  zoom: 12,
+  zoomControl: true,
+});
+
+// Dark OSM tile layer
+L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+  attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
+  maxZoom: 19,
+}).addTo(map);
+
+// ── Icon builders ─────────────────────────────────────────────────────────────
+function incidentIcon(severity) {
+  const colors = { Critical: '#ef4444', High: '#ef4444', Medium: '#eab308', Low: '#22c55e' };
+  const c = colors[severity] || '#f97316';
+  return L.divIcon({
+    html: `<div style="
+      width:36px;height:36px;border-radius:50%;
+      background:${c};border:3px solid #fff;
+      display:flex;align-items:center;justify-content:center;
+      font-size:16px;box-shadow:0 0 12px ${c}88;
+      position:relative;">
+      ⚠
+      <div style="position:absolute;width:36px;height:36px;
+        border-radius:50%;border:2px solid ${c};
+        animation:ring-pulse 1.8s ease-out infinite;"></div>
+    </div>`,
+    iconSize: [36, 36],
+    iconAnchor: [18, 18],
+    popupAnchor: [0, -20],
+    className: '',
+  });
+}
+
+function resourceIcon(type) {
+  const emoji = { ambulance: '🚑', hospital: '🏥', police: '🚔', fire: '🚒' }[type] || '📍';
+  return L.divIcon({
+    html: `<div style="font-size:22px;filter:drop-shadow(0 2px 4px rgba(0,0,0,.6));">${emoji}</div>`,
+    iconSize: [28, 28], iconAnchor: [14, 14], popupAnchor: [0, -16], className: '',
+  });
+}
+
+// ── Layer groups ──────────────────────────────────────────────────────────────
+const incidentLayer  = L.layerGroup().addTo(map);
+const resourceLayer  = L.layerGroup().addTo(map);
+const incidentMarkers = {};
+
+// ── Render incidents ──────────────────────────────────────────────────────────
+const incidents = {{ incidents | tojson }};
+incidents.forEach(inc => {
+  if (inc.latitude == null || inc.longitude == null) return;
+  const lat = inc.latitude;
+  const lng = inc.longitude;
+  const marker = L.marker([lat, lng], { icon: incidentIcon(inc.severity) }).addTo(incidentLayer);
+  const sc = (inc.status || '').replace(/ /g, '-').toLowerCase();
+  marker.bindPopup(`
+    <div style="min-width:180px;font-size:12px;">
+      <div style="font-weight:700;font-size:14px;margin-bottom:6px;">Incident #${inc.id}</div>
+      <div><b>Severity:</b> ${inc.severity}</div>
+      <div><b>Status:</b> ${inc.status}</div>
+      <div><b>Vehicle:</b> ${inc.vehicle_type || 'Unknown'} #${inc.vehicle_id || ''}</div>
+      <div style="margin-top:6px;color:#8b949e;font-size:11px;">${inc.address || inc.location_text || ''}</div>
+      <a href="/incidents/${inc.id}/map" style="display:inline-block;margin-top:8px;background:#f97316;color:#fff;padding:4px 10px;border-radius:4px;font-size:11px;font-weight:600;text-decoration:none;">
+        🗺 Open Incident Map
+      </a>
+    </div>
+  `);
+  incidentMarkers[inc.id] = { marker, lat, lng };
+});
+
+// ── Render resources ──────────────────────────────────────────────────────────
+const resources = {{ resources | tojson }};
+resources.forEach(res => {
+  if (!res.latitude || !res.longitude) return;
+  const marker = L.marker([res.latitude, res.longitude], { icon: resourceIcon(res.agency_type) })
+    .addTo(resourceLayer);
+  marker.bindPopup(`
+    <div style="font-size:12px;">
+      <div style="font-weight:700;margin-bottom:4px;">${res.resource_name}</div>
+      <div><b>Type:</b> ${res.agency_type}</div>
+      <div><b>Status:</b> ${res.status}</div>
+      <div><b>Position:</b> Registered base; not live GPS</div>
+      <div style="color:#8b949e;font-size:11px;margin-top:4px;">${res.location_text || ''}</div>
+    </div>
+  `);
+});
+
+// ── Focus on incident from sidebar ───────────────────────────────────────────
+function focusIncident(id, lat, lng) {
+  map.setView([lat, lng], 15, { animate: true });
+  if (incidentMarkers[id]) incidentMarkers[id].marker.openPopup();
+  document.querySelectorAll('.inc-card').forEach(c => c.classList.remove('active-card'));
+  const card = document.getElementById(`inc-card-${id}`);
+  if (card) { card.classList.add('active-card'); card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
+}
+
+// ── Layer control ─────────────────────────────────────────────────────────────
+L.control.layers(null, {
+  'Incidents': incidentLayer,
+  'Resources': resourceLayer,
+}, { position: 'topright', collapsed: false }).addTo(map);
+
+</script>
+{% endblock %}

@@ -1,0 +1,141 @@
+{% extends "base.html" %}
+{% block title %}User Management{% endblock %}
+{% block page_title %}<i class="bi bi-people me-2" style="color:var(--rql-blue);"></i>Users{% endblock %}
+
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2 class="page-title">User Management</h2>
+    <span class="page-subtitle">Manage system accounts and role assignments</span>
+  </div>
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addUserModal">
+    <i class="bi bi-person-plus"></i> Add User
+  </button>
+</div>
+
+<div class="card">
+  <div class="rql-table-container">
+    {% if users %}
+    <table class="rql-table">
+      <thead>
+        <tr>
+          <th>#</th>
+          <th>Username</th>
+          <th>Role</th>
+          <th>Agency</th>
+          <th>Status</th>
+          <th>Created</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for u in users %}
+        <tr>
+          <td class="mono" style="color:var(--rql-text-dim);">{{ u.id }}</td>
+          <td>
+            <div class="d-flex align-items-center gap-8">
+              <div class="user-avatar" style="font-size:11px;width:28px;height:28px;">
+                {{ u.username[0].upper() }}
+              </div>
+              <span style="font-weight:600;margin-left:8px;">{{ u.username }}</span>
+            </div>
+          </td>
+          <td>
+            <span class="badge-status
+              {% if u.role == 'admin' %}badge-critical
+              {% elif u.role == 'operator' %}badge-under-review
+              {% elif u.role == 'responder' %}badge-verified
+              {% elif u.role in ('police','fire') %}badge-medium
+              {% else %}badge-new{% endif %}">
+              {{ roles[u.role] }}
+            </span>
+          </td>
+          <td style="color:var(--rql-text-muted);font-size:12px;">{{ u.agency_name or '—' }}</td>
+          <td>
+            {% if u.active %}
+            <span class="badge-status badge-verified">Active</span>
+            {% else %}
+            <span class="badge-status badge-closed">Inactive</span>
+            {% endif %}
+          </td>
+          <td style="font-size:11px;color:var(--rql-text-muted);">{{ u.created_at[:10] }}</td>
+          <td>
+            {% if u.id != user.id %}
+            <form method="post" action="{{ url_for('toggle_user', uid=u.id) }}" style="display:inline;">
+              <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+              <button type="submit" class="btn btn-sm {% if u.active %}btn-outline-secondary{% else %}btn-success{% endif %}"
+                data-confirm="{% if u.active %}Deactivate {{ u.username }}?{% else %}Activate {{ u.username }}?{% endif %}">
+                {% if u.active %}
+                <i class="bi bi-person-x"></i> Deactivate
+                {% else %}
+                <i class="bi bi-person-check"></i> Activate
+                {% endif %}
+              </button>
+            </form>
+            {% else %}
+            <span style="font-size:11px;color:var(--rql-text-dim);">You</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}
+    <div class="empty-state">
+      <i class="bi bi-people"></i>
+      <p>No users found.</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<!-- ── Add user modal ─────────────────────────────────────────── -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content" style="background:var(--rql-surface);border-color:var(--rql-border);">
+      <div class="modal-header" style="border-color:var(--rql-border);">
+        <h5 class="modal-title" style="font-size:15px;">
+          <i class="bi bi-person-plus me-2" style="color:var(--rql-accent);"></i>
+          Add User
+        </h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('add_user') }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-12">
+              <label class="form-label">Username</label>
+              <input type="text" class="form-control" name="username"
+                placeholder="Min. 3 characters" required minlength="3" />
+            </div>
+            <div class="col-12">
+              <label class="form-label">Password</label>
+              <input type="password" class="form-control" name="password"
+                placeholder="Min. 12 characters" required minlength="12" />
+            </div>
+            <div class="col-12">
+              <label class="form-label">Role</label>
+              <select class="form-select" name="role" required>
+                {% for k, v in roles.items() %}
+                <option value="{{ k }}">{{ v }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12">
+              <label class="form-label">Agency / Organisation</label>
+              <input type="text" class="form-control" name="agency_name" placeholder="Optional" />
+            </div>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-color:var(--rql-border);">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary">
+            <i class="bi bi-person-check"></i> Create User
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endblock %}

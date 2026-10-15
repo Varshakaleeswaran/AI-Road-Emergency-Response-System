@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}Hospital Registry{% endblock %}
+{% block page_title %}<i class="bi bi-hospital me-2" style="color:var(--rql-blue);"></i>Hospital Registry{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-header-left">
+    <h2 class="page-title">Hospital Registry</h2>
+    <span class="page-subtitle">{{ hospitals|length }} registered hospitals</span>
+  </div>
+  {% if has_permission(user.role, 'manage_registries') %}
+  <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addHospModal"><i class="bi bi-plus-lg"></i> Add Hospital</button>
+  {% endif %}
+</div>
+
+<div class="resource-grid mb-4">
+  {% for h in hospitals %}
+  <div class="resource-card">
+    <div class="resource-card-head">
+      <div class="resource-type-icon hospital">🏥</div>
+      <div>
+        <div class="resource-name">{{ h.name }}</div>
+        <div class="resource-loc"><span class="mono" style="font-size:10px;">{{ h.hospital_code }}</span></div>
+      </div>
+    </div>
+    <div class="d-flex align-items-center justify-content-between mb-2">
+      <span class="badge-status {% if h.operating_status=='Open' %}badge-verified{% elif h.operating_status=='Divert' %}badge-medium{% else %}badge-high{% endif %}">{{ h.operating_status }}</span>
+      {% if h.trauma_center %}<span class="badge-status badge-high">Trauma</span>{% endif %}
+      <span class="badge-status badge-under-review">{{ h.capability_level }}</span>
+    </div>
+    <div class="meta-grid" style="grid-template-columns:1fr 1fr 1fr;">
+      <div class="meta-item"><span class="meta-key">Beds</span><span class="meta-val" style="color:var(--rql-green);">{{ h.available_beds }}/{{ h.total_beds }}</span></div>
+      <div class="meta-item"><span class="meta-key">ICU</span><span class="meta-val" style="color:var(--rql-blue);">{{ h.icu_available }}/{{ h.icu_beds }}</span></div>
+      <div class="meta-item"><span class="meta-key">Contact</span><span class="meta-val mono" style="font-size:10px;">{{ h.emergency_contact or h.contact_number or '—' }}</span></div>
+    </div>
+    <div style="font-size:11px;color:var(--rql-text-muted);margin-top:6px;"><i class="bi bi-geo-alt"></i> {{ h.address or '—' }}</div>
+    {% if has_permission(user.role, 'manage_registries') or user.role == 'hospital' %}
+    <form method="post" action="{{ url_for('update_hospital_capacity', hid=h.id) }}" class="d-flex gap-1 mt-2">
+      <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+      <input type="number" class="form-control form-control-sm" name="available_beds" value="{{ h.available_beds }}" placeholder="Beds" min="0" style="width:70px;">
+      <input type="number" class="form-control form-control-sm" name="icu_available" value="{{ h.icu_available }}" placeholder="ICU" min="0" style="width:60px;">
+      <select class="form-select form-select-sm" name="operating_status" style="min-width:80px;">
+        {% for s in ['Open','Divert','Limited','Closed'] %}
+        <option {% if s==h.operating_status %}selected{% endif %}>{{ s }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-primary btn-sm">Save</button>
+    </form>
+    {% endif %}
+  </div>
+  {% else %}
+  <div class="card"><div class="empty-state"><i class="bi bi-hospital"></i><p>No hospitals registered.</p></div></div>
+  {% endfor %}
+</div>
+
+{% if has_permission(user.role, 'manage_registries') %}
+<div class="modal fade" id="addHospModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content" style="background:var(--rql-surface);border-color:var(--rql-border);">
+      <div class="modal-header" style="border-color:var(--rql-border);">
+        <h5 class="modal-title" style="font-size:15px;"><i class="bi bi-hospital me-2" style="color:var(--rql-blue);"></i>Add Hospital</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="post" action="{{ url_for('add_hospital') }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}" />
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-md-4"><label class="form-label">Hospital Code *</label><input type="text" class="form-control" name="hospital_code" placeholder="HOSP-006" required></div>
+            <div class="col-md-8"><label class="form-label">Name *</label><input type="text" class="form-control" name="name" required></div>
+            <div class="col-12"><label class="form-label">Address</label><input type="text" class="form-control" name="address"></div>
+            <div class="col-md-6"><label class="form-label">Contact</label><input type="text" class="form-control" name="contact_number"></div>
+            <div class="col-md-6"><label class="form-label">Emergency Contact</label><input type="text" class="form-control" name="emergency_contact"></div>
+            <div class="col-md-3"><label class="form-label">Total Beds</label><input type="number" class="form-control" name="total_beds" value="0" min="0"></div>
+            <div class="col-md-3"><label class="form-label">Available Beds</label><input type="number" class="form-control" name="available_beds" value="0" min="0"></div>
+            <div class="col-md-3"><label class="form-label">ICU Beds</label><input type="number" class="form-control" name="icu_beds" value="0" min="0"></div>
+            <div class="col-md-3"><label class="form-label">ICU Available</label><input type="number" class="form-control" name="icu_available" value="0" min="0"></div>
+            <div class="col-md-4"><label class="form-label">Capability</label>
+              <select class="form-select" name="capability_level"><option>General</option><option>Trauma</option><option>ICU</option><option>Speciality</option></select></div>
+            <div class="col-md-4"><label class="form-label">Latitude</label><input type="number" step="0.000001" class="form-control" name="latitude"></div>
+            <div class="col-md-4"><label class="form-label">Longitude</label><input type="number" step="0.000001" class="form-control" name="longitude"></div>
+            <div class="col-md-4"><div class="form-check mt-4"><input class="form-check-input" type="checkbox" name="trauma_center" id="tc"><label class="form-check-label" for="tc">Trauma Centre</label></div></div>
+          </div>
+        </div>
+        <div class="modal-footer" style="border-color:var(--rql-border);">
+          <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-primary"><i class="bi bi-plus-lg"></i> Add Hospital</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}
