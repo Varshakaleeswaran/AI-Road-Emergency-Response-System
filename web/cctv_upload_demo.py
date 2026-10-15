@@ -537,7 +537,10 @@ def register_cctv_upload_demo(app, current_user, db_path, add_evidence, audit):
         return Path(db_path() if callable(db_path) else db_path)
 
     def _dispatch_analysis(db_file, upload_id, video_path, model_path):
-        if app.config.get("CCTV_INLINE_WORKER_ENABLED", True):
+        if (
+            app.config.get("CCTV_ANALYSIS_ENABLED", True)
+            and app.config.get("CCTV_INLINE_WORKER_ENABLED", True)
+        ):
             _queue_analysis(db_file, upload_id, video_path, model_path)
 
     def _storage_path():
@@ -594,6 +597,11 @@ def register_cctv_upload_demo(app, current_user, db_path, add_evidence, audit):
 
     @app.route("/cctv-demo/upload", methods=["GET", "POST"])
     def cctv_demo_upload():
+        if not app.config.get("CCTV_ANALYSIS_ENABLED", True):
+            abort(
+                503,
+                description="CCTV video analysis is unavailable on this serverless demo deployment.",
+            )
         user = _authorised_user()
         if user is None:
             return redirect(url_for("login", next=request.path))
@@ -695,6 +703,11 @@ def register_cctv_upload_demo(app, current_user, db_path, add_evidence, audit):
 
     @app.route("/cctv-demo/upload/<int:upload_id>/link", methods=["POST"])
     def cctv_demo_link_upload(upload_id):
+        if not app.config.get("CCTV_ANALYSIS_ENABLED", True):
+            abort(
+                503,
+                description="CCTV video analysis is unavailable on this serverless demo deployment.",
+            )
         user = _authorised_user()
         if user is None:
             return redirect(url_for("login", next=request.path))
@@ -761,6 +774,11 @@ def register_cctv_upload_demo(app, current_user, db_path, add_evidence, audit):
 
     @app.route("/cctv-demo/video/<int:upload_id>")
     def cctv_demo_video(upload_id):
+        if not app.config.get("CCTV_ANALYSIS_ENABLED", True):
+            abort(
+                503,
+                description="CCTV video analysis is unavailable on this serverless demo deployment.",
+            )
         user = _authorised_user()
         if user is None:
             return redirect(url_for("login", next=request.path))

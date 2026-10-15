@@ -46,6 +46,7 @@ app.config.update(
         DEPLOYMENT_ENV != "production"
         and os.environ.get("RESQLINK_DEMO_MODE") == "1"
     ),
+    CCTV_ANALYSIS_ENABLED=True,
     CCTV_INLINE_WORKER_ENABLED=DEPLOYMENT_ENV != "production",
     SESSION_COOKIE_SECURE=os.environ.get(
         "RESQLINK_COOKIE_SECURE", "1" if DEPLOYMENT_ENV == "production" else "0"

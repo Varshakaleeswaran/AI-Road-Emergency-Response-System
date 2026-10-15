@@ -75,6 +75,14 @@ After the service is created:
 
 This deployment is a single-instance prototype: SQLite and the worker are not horizontally scalable, and this setup does not certify the accident-classification pipeline or emergency dispatch workflow for operational use.
 
+### Vercel temporary demo
+
+The repository also has a Vercel Flask entrypoint for a limited preview. In Vercel, import this repository on the `main` branch, leave **Root Directory** at the repository root, keep the detected **Flask** framework preset, and use the default install command (`pip install -r requirements.txt`). Leave **Build Command** and **Output Directory** unset. Add a `RESQLINK_SECRET_KEY` environment variable with a private random value of at least 32 characters, then deploy. The root `requirements.txt` and `pyproject.toml` select the Vercel Flask runtime entrypoint.
+
+This preview explicitly uses demo accounts and sample Chennai data. Sign in with `admin` / `Admin@ResQLink1` for a UI walkthrough only; change or remove demo credentials before sharing the URL. The SQLite database and uploaded files use Vercel's temporary `/tmp` storage and may disappear or differ between function instances or deployments. CCTV upload and analysis routes are disabled because Vercel does not run this project's persistent CCTV worker. Do not use this deployment for real users, sensitive reports, reliable incident records, CCTV processing, or dispatch operations. Use the Render persistent-disk deployment above for the complete portal and worker.
+
+After adding the `RESQLINK_SECRET_KEY` value in Vercel, do not commit it to the repository.
+
 Create a consistent, integrity-checked database backup from the `web` directory; the destination directory must exist and an existing backup is never overwritten:
 
 ```powershell

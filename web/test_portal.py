@@ -888,11 +888,23 @@ class TestResQLinkPortal(unittest.TestCase):
             )["count"],
             response_case_count,
         )
+
         with patch.object(cctv_upload_demo, "_queue_analysis"):
             page = self.client.get("/cctv-demo/upload")
         self.assertEqual(page.status_code, 200)
         self.assertIn(b"CV evidence only", page.data)
         self.assertIn(b"does not classify accidents", page.data)
+
+    def test_cctv_analysis_routes_can_be_disabled_for_serverless_deployments(self):
+        previous_setting = flask_app.app.config.get("CCTV_ANALYSIS_ENABLED", True)
+        flask_app.app.config["CCTV_ANALYSIS_ENABLED"] = False
+        try:
+            response = self.client.get("/cctv-demo/upload")
+        finally:
+            flask_app.app.config["CCTV_ANALYSIS_ENABLED"] = previous_setting
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn(b"unavailable on this serverless demo deployment", response.data)
 
     def test_production_cctv_upload_rejects_demo_camera(self):
         self.set_user("admin", "admin")
