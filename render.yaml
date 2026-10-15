@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: resqlink-ai
+    runtime: python
+    plan: starter
+    buildCommand: cd web && pip install -r requirements-ai.txt
+    startCommand: python web/render_start.py
+    healthCheckPath: /health/ready
+    disk:
+      name: resqlink-data
+      mountPath: /var/data
+      sizeGB: 10
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.8
+      - key: RESQLINK_ENV
+        value: production
+      - key: RESQLINK_SECRET_KEY
+        generateValue: true
+      - key: RESQLINK_DATABASE_PATH
+        value: /var/data/resqlink-prod.db
+      - key: RESQLINK_UPLOAD_DIR
+        value: /var/data/report-uploads
+      - key: RESQLINK_CCTV_UPLOAD_DIR
+        value: /var/data/cctv-uploads
+      - key: RESQLINK_YOLO_MODEL
+        value: /var/data/models/yolo26n.pt

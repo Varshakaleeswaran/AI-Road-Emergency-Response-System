@@ -63,6 +63,18 @@ These bootstrap safeguards are not a production-readiness certification: this ap
 
 Service checks: `GET /health/live` returns process liveness; `GET /health/ready` returns ready only when the portal SQLite database passes a quick integrity check and required core tables exist. These endpoints expose only a status and do not certify AI, agency, or dispatch readiness.
 
+### Render deployment
+
+The repository includes a Render Blueprint in [`render.yaml`](./render.yaml). In Render, create a new Blueprint and select this repository. The Blueprint creates one paid web service with a persistent disk; the portal and its single CCTV worker run as supervised processes in that same service because Render disks are not shared between separate services. SQLite and stored report/CCTV uploads persist under `/var/data`. The build installs the optional AI dependencies as well as the portal requirements.
+
+After the service is created:
+
+1. Open the service Shell and create the first administrator with `cd web && flask --app flask_app create-admin`. Production mode does not seed demo accounts, sample resources, or cameras. Register and verify operational accounts and resources before using the portal.
+2. The YOLO checkpoint is intentionally not stored in Git. Before using CCTV analysis, place the approved `yolo26n.pt` checkpoint at `/var/data/models/yolo26n.pt` (or update `RESQLINK_YOLO_MODEL` to its persistent-disk path). Until the file is present, CCTV analysis jobs will fail explicitly; the portal itself can still run.
+3. Keep the generated `RESQLINK_SECRET_KEY` secret. Back up the SQLite database and uploaded files separately. A Render persistent disk is attached to this single service and is not a substitute for backups.
+
+This deployment is a single-instance prototype: SQLite and the worker are not horizontally scalable, and this setup does not certify the accident-classification pipeline or emergency dispatch workflow for operational use.
+
 Create a consistent, integrity-checked database backup from the `web` directory; the destination directory must exist and an existing backup is never overwritten:
 
 ```powershell

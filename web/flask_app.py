@@ -27,8 +27,13 @@ if DEPLOYMENT_ENV == "production" and not configured_db_path:
 # ── Paths ─────────────────────────────────────────────────────────────────────
 BASE_DIR  = Path(__file__).resolve().parent.parent
 DB_PATH   = Path(configured_db_path).expanduser().resolve() if configured_db_path else BASE_DIR / "resqlink_incidents.db"
-UPLOAD_DIR = BASE_DIR / "uploads"
-UPLOAD_DIR.mkdir(exist_ok=True)
+configured_upload_dir = os.environ.get("RESQLINK_UPLOAD_DIR")
+UPLOAD_DIR = (
+    Path(configured_upload_dir).expanduser().resolve()
+    if configured_upload_dir
+    else BASE_DIR / "uploads"
+)
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 # ── App ───────────────────────────────────────────────────────────────────────
 app = Flask(__name__)
