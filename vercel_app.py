@@ -15,6 +15,7 @@ os.environ.setdefault("RESQLINK_DEMO_MODE", "1")
 os.environ.setdefault("RESQLINK_DATABASE_PATH", "/tmp/resqlink-demo.db")
 os.environ.setdefault("RESQLINK_UPLOAD_DIR", "/tmp/resqlink-report-uploads")
 os.environ.setdefault("RESQLINK_CCTV_UPLOAD_DIR", "/tmp/resqlink-cctv-uploads")
+os.environ.setdefault("RESQLINK_COOKIE_SECURE", "1")
 
 if not os.environ.get("RESQLINK_SECRET_KEY"):
     raise RuntimeError(
