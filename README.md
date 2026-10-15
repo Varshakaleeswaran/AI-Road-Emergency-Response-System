@@ -77,11 +77,11 @@ This deployment is a single-instance prototype: SQLite and the worker are not ho
 
 ### Vercel temporary demo
 
-The repository also has a Vercel Flask entrypoint for a limited preview. In Vercel, import this repository on the `main` branch, leave **Root Directory** at the repository root, keep the detected **Flask** framework preset, and use the default install command (`pip install -r requirements.txt`). Leave **Build Command** and **Output Directory** unset. Add a `RESQLINK_SECRET_KEY` environment variable with a private random value of at least 32 characters, then deploy. The root `requirements.txt` and `pyproject.toml` select the Vercel Flask runtime entrypoint.
+The repository also includes a Vercel Flask entrypoint for a limited preview. Import this repository on the `main` branch, leave the **Root Directory** at the repository root, select the detected **Flask** framework preset, and use the default install command. Leave **Build Command** and **Output Directory** unset. Set a private `RESQLINK_SECRET_KEY` environment variable with at least 32 characters before deploying. The root `pyproject.toml` contains the Python project metadata and Vercel entrypoint configuration required by Vercel's `uv` build.
 
-This preview explicitly uses demo accounts and sample Chennai data. Sign in with `admin` / `Admin@ResQLink1` for a UI walkthrough only; change or remove demo credentials before sharing the URL. The SQLite database and uploaded files use Vercel's temporary `/tmp` storage and may disappear or differ between function instances or deployments. CCTV upload and analysis routes are disabled because Vercel does not run this project's persistent CCTV worker. Do not use this deployment for real users, sensitive reports, reliable incident records, CCTV processing, or dispatch operations. Use the Render persistent-disk deployment above for the complete portal and worker.
+This preview enables demo accounts and sample Chennai data. It uses temporary `/tmp` SQLite and upload storage, which may disappear or differ between function instances and deployments. CCTV upload and analysis routes are disabled because Vercel does not run the persistent CCTV worker. Do not use this preview for sensitive reports, reliable incident records, CCTV processing, or real dispatch. The sample `admin` / `Admin@ResQLink1` credentials are for a private UI walkthrough only; do not share the deployment while those credentials are enabled. Use the Render persistent-disk deployment above for the complete portal and worker.
 
-After adding the `RESQLINK_SECRET_KEY` value in Vercel, do not commit it to the repository.
+Set `RESQLINK_SECRET_KEY` in Vercel's project environment variables; never commit the secret to this repository.
 
 Create a consistent, integrity-checked database backup from the `web` directory; the destination directory must exist and an existing backup is never overwritten:
 
