@@ -1,0 +1,19 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "services": {
+    "resqlink-ai": {
+      "root": ".",
+      "framework": "flask",
+      "entrypoint": "vercel_app:app",
+      "buildCommand": "pip install -r requirements.txt"
+    }
+  },
+  "rewrites": [
+    {
+      "source": "/(.*)",
+      "destination": {
+        "service": "resqlink-ai"
+      }
+    }
+  ]
+}
